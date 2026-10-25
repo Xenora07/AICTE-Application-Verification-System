@@ -48,7 +48,11 @@ export const SyntheticTestRunner: React.FC<SyntheticTestRunnerProps> = ({
                     {tc.test_id}
                   </span>
                   <span className={`badge ${tc.expected_outcome === 'SUCCESS' ? 'badge-pass' : tc.expected_outcome.includes('FAILED') ? 'badge-fail' : 'badge-inconclusive'} badge-pill`} style={{ fontSize: '10.5px' }}>
-                    {tc.expected_outcome}
+                    {tc.expected_outcome === 'SUCCESS'
+                      ? 'Expected: Pass'
+                      : tc.expected_outcome.includes('FAILED')
+                      ? 'Expected: Fail'
+                      : 'Expected: Review'}
                   </span>
                 </div>
 
@@ -60,7 +64,7 @@ export const SyntheticTestRunner: React.FC<SyntheticTestRunnerProps> = ({
                   {tc.description}
                 </p>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                   <span>Rule: <strong className="code-mono" style={{ color: 'var(--text-primary)' }}>{tc.expected_rule_ids?.join(', ')}</strong></span>
                   <span>•</span>
                   <span>Severity: <strong style={{ color: tc.expected_severity === 'CRITICAL' ? 'var(--color-fail-text)' : tc.expected_severity === 'HIGH' ? '#c2410c' : 'var(--text-primary)' }}>{tc.expected_severity}</strong></span>

@@ -7,6 +7,32 @@ interface ExtractedFieldsCardProps {
   processingMetadata: any;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  academic_year: 'Academic Year',
+  academic_year_start: 'Academic Year Start',
+  academic_year_end: 'Academic Year End',
+  application_id: 'Application ID',
+  permanent_institute_id: 'Permanent Institute ID',
+  institution_name: 'Institution Name',
+  state: 'State',
+  district: 'District',
+  program_level: 'Program Level',
+  course_name: 'Course Name',
+  approved_intake: 'Approved Intake',
+  total_intake: 'Total Approved Intake',
+  principal_name: 'Principal Name',
+  land_area_acres: 'Total Land Area (Acres)',
+  built_up_area_sqm: 'Built-Up Area (Sq.m)',
+};
+
+export const formatFieldLabel = (key: string): string => {
+  if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  return key
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+};
+
 export const ExtractedFieldsCard: React.FC<ExtractedFieldsCardProps> = ({
   fields,
   tables,
@@ -77,9 +103,12 @@ export const ExtractedFieldsCard: React.FC<ExtractedFieldsCardProps> = ({
                   {fieldEntries.map(([name, ev]) => (
                     <tr key={name}>
                       <td>
-                        <span className="code-mono" style={{ fontWeight: '600', color: 'var(--color-brand)' }}>
+                        <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '12.5px' }}>
+                          {formatFieldLabel(name)}
+                        </div>
+                        <div className="code-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {name}
-                        </span>
+                        </div>
                       </td>
                       <td>
                         <strong style={{ color: 'var(--text-primary)' }}>

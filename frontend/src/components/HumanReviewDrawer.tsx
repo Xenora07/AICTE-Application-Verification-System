@@ -9,6 +9,7 @@ interface HumanReviewDrawerProps {
   documentId: string;
   adjudications: Record<string, AdjudicationRecord>;
   onSaveAdjudication: (record: AdjudicationRecord) => void;
+  initialFindingId?: string;
 }
 
 export const HumanReviewDrawer: React.FC<HumanReviewDrawerProps> = ({
@@ -18,6 +19,7 @@ export const HumanReviewDrawer: React.FC<HumanReviewDrawerProps> = ({
   documentId,
   adjudications,
   onSaveAdjudication,
+  initialFindingId,
 }) => {
   const [activeFindingIndex, setActiveFindingIndex] = useState(0);
   const [notesInput, setNotesInput] = useState('');
@@ -26,6 +28,21 @@ export const HumanReviewDrawer: React.FC<HumanReviewDrawerProps> = ({
   const reviewableFindings = findings.filter(
     (f) => f.requires_human_review || f.outcome === 'INCONCLUSIVE' || f.outcome === 'FAIL'
   );
+
+  // Synchronize active finding index with requested initialFindingId on open
+  useEffect(() => {
+    if (isOpen && initialFindingId) {
+      const targetIdx = reviewableFindings.findIndex((f) => f.finding_id === initialFindingId);
+      if (targetIdx !== -1) {
+        setActiveFindingIndex(targetIdx);
+      }
+    } else if (isOpen && (!initialFindingId || activeFindingIndex >= reviewableFindings.length)) {
+      if (activeFindingIndex >= reviewableFindings.length) {
+        setActiveFindingIndex(0);
+      }
+    }
+  }, [isOpen, initialFindingId, reviewableFindings.length]);
+
   const currentFinding = reviewableFindings[activeFindingIndex];
 
   // Sync notes input when active finding changes
@@ -174,13 +191,14 @@ export const HumanReviewDrawer: React.FC<HumanReviewDrawerProps> = ({
                       borderRadius: '5px',
                       fontSize: '11.5px',
                       fontWeight: '600',
-                      backgroundColor: idx === activeFindingIndex ? 'var(--color-brand)' : '#ffffff',
+                      backgroundColor: idx === activeFindingIndex ? 'var(--color-brand)' : 'var(--bg-surface)',
                       color: idx === activeFindingIndex ? '#ffffff' : 'var(--text-secondary)',
                       border: `1px solid ${decided ? '#15803d' : idx === activeFindingIndex ? 'var(--color-brand)' : 'var(--border-color)'}`,
                       whiteSpace: 'nowrap',
                     }}
+                    title={`Rule ID: ${f.rule_id}`}
                   >
-                    {decided ? '✓ ' : ''}{f.rule_id}
+                    {decided ? '✓ ' : ''}{f.rule_name || f.rule_id}
                     {decided ? ` (${decided.decision})` : ''}
                   </button>
                 );
@@ -343,7 +361,7 @@ export const HumanReviewDrawer: React.FC<HumanReviewDrawerProps> = ({
                 {Object.keys(adjudications).length} of {reviewableFindings.length} findings adjudicated in draft
               </div>
               <button onClick={handleSaveAndClose} className="btn btn-brand">
-                Save & Close Panel
+                Done Reviewing
               </button>
             </div>
           </div>

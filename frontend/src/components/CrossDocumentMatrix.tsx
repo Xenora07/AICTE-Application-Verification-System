@@ -111,7 +111,7 @@ export const CrossDocumentMatrix: React.FC<CrossDocumentMatrixProps> = ({
                     </span>
                   </div>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Docs: {f.affected_document_ids?.join(' vs ')}
+                    Docs: {f.affected_document_ids?.join(' and ')}
                   </span>
                 </div>
 

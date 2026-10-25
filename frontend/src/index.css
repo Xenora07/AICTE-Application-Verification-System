@@ -17,8 +17,8 @@
   /* Text */
   --text-primary: #1c1917;
   --text-secondary: #57534e;
-  --text-muted: #8c857f;
-  --text-light: #a8a29e;
+  --text-muted: #645d56;
+  --text-light: #8c857f;
 
   /* Brand Accents (Deep Espresso Brown & Warm Amber) */
   --color-brand: #452c1e;
@@ -91,8 +91,8 @@
   /* Text */
   --text-primary: #f5f3ef;
   --text-secondary: #aba69e;
-  --text-muted: #7d776f;
-  --text-light: #5e5952;
+  --text-muted: #99938a;
+  --text-light: #706a62;
 
   /* Brand Accents (Warm Bronze / Amber on dark) */
   --color-brand: #d49561;
@@ -167,12 +167,29 @@ button {
   transition: all 0.15s ease;
 }
 
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+.btn:focus-visible,
+.ledger-tab:focus-visible,
+.sidebar-nav-item:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px;
+}
+
 input, select, textarea {
   font-family: inherit;
   color: var(--text-primary);
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   outline: none;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 1px;
 }
 
 /* Scrollbar */
@@ -260,6 +277,27 @@ input, select, textarea {
   height: 1px;
   background-color: var(--border-subtle);
   margin: 12px 4px;
+}
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.sidebar-section-header:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .sidebar-footer {
@@ -422,6 +460,52 @@ input, select, textarea {
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
+}
+
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.52;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  box-shadow: none !important;
+}
+
+/* Pulsing Status Dot */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+}
+
+.status-dot-pulse {
+  animation: pulse-dot 2.2s infinite ease-in-out;
+}
+
+/* Enhanced Form Inputs */
+input[type="text"],
+select,
+textarea {
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 2px rgba(69, 44, 30, 0.14);
+}
+
+[data-theme="dark"] input[type="text"]:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 2px rgba(212, 149, 97, 0.22);
 }
 
 /* Typography & Code */

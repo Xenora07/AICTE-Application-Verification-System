@@ -73,52 +73,45 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Status, Counters & CTAs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {/* Backend Online status pill */}
+        {/* Backend Online status indicator */}
         <div
           onClick={onRefreshHealth}
-          title="Click to re-ping backend health endpoint"
+          title={`Click to re-check API health • Engine: ${
+            health?.ocr_engine === 'synthetic_test_engine'
+              ? 'Standard Rule & OCR Engine'
+              : health?.ocr_engine || 'Regulatory Pipeline'
+          }`}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '7px',
             fontSize: '12px',
             color: 'var(--text-secondary)',
             cursor: 'pointer',
+            padding: '4px 10px',
+            borderRadius: '999px',
+            backgroundColor: 'var(--bg-surface-subtle)',
+            border: '1px solid var(--border-subtle)',
           }}
         >
           <span
+            className={health?.status === 'healthy' ? 'status-dot-pulse' : ''}
             style={{
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
               backgroundColor: health?.status === 'healthy' ? '#22c55e' : health ? '#ef4444' : '#f59e0b',
               display: 'inline-block',
               boxShadow: health?.status === 'healthy' ? '0 0 6px #22c55e' : '0 0 6px #f59e0b',
             }}
           />
-          <span>
+          <span style={{ fontWeight: '500' }}>
             {health?.status === 'healthy'
-              ? `Backend Online (${health.ocr_engine || 'OCR Ready'})`
+              ? 'System Online'
               : health
-              ? `Backend Status: ${health.status}`
-              : 'Connecting to API...'}
+              ? `Status: ${health.status}`
+              : 'Connecting...'}
           </span>
-        </div>
-
-        {/* Dataset docs count */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          padding: '4px 10px',
-          borderRadius: '6px',
-          backgroundColor: 'var(--bg-hover)',
-          border: '1px solid var(--border-subtle)',
-        }}>
-          <Database size={14} style={{ color: 'var(--text-muted)' }} />
-          <span>{datasetCount > 0 ? `${datasetCount} dataset docs` : 'Dataset catalog unavailable'}</span>
         </div>
 
         {/* Theme button */}
@@ -327,17 +320,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
         </div>
-
-        {/* Upload Document Primary CTA */}
-        <button
-          type="button"
-          onClick={onOpenUpload}
-          className="btn btn-brand"
-          style={{ padding: '8px 16px', fontSize: '13px' }}
-        >
-          <Upload size={15} />
-          <span>Upload Document</span>
-        </button>
       </div>
     </header>
   );

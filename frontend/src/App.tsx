@@ -21,8 +21,12 @@ import {
 import { AlertCircle, CheckCircle2, FileText, ShieldAlert, History } from 'lucide-react';
 
 export const App: React.FC = () => {
+  const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
   // Navigation destinations
-  const [activeDestination, setActiveDestination] = useState<MainNavDestination>('single');
+  const [activeDestination, setActiveDestination] = useState<MainNavDestination>(
+    () => (queryParams?.get('tab') as MainNavDestination) || 'single'
+  );
   const [activeSubTab, setActiveSubTab] = useState<'findings' | 'fields' | 'cross' | 'doc_view' | 'audit'>('findings');
 
   // Backend data & session state
@@ -34,6 +38,7 @@ export const App: React.FC = () => {
   const [crossReport, setCrossReport] = useState<CrossValidateResponse | null>(null);
   const [activeSampleId, setActiveSampleId] = useState<string | undefined>();
   const [activeTestId, setActiveTestId] = useState<string | undefined>();
+  const [selectedFindingIdForReview, setSelectedFindingIdForReview] = useState<string | undefined>();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +53,8 @@ export const App: React.FC = () => {
   // Theme state ('light' | 'dark')
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
+      const qTheme = queryParams?.get('theme');
+      if (qTheme === 'dark' || qTheme === 'light') return qTheme;
       const saved = localStorage.getItem('aicte_theme');
       if (saved === 'dark' || saved === 'light') return saved;
     } catch {
@@ -82,6 +89,14 @@ export const App: React.FC = () => {
     setAdjudicationAlert(
       `Action Recorded: "${record.decision}" for ${record.ruleId} (${record.ruleName}) — "${record.notes}" (Session Draft)`
     );
+  };
+
+  const formatEngineLabel = (engine?: string | null) => {
+    if (!engine) return 'Standard Rule & OCR Engine';
+    if (engine === 'synthetic_test_engine') return 'Standard Automated Engine';
+    if (engine.toLowerCase().includes('easyocr')) return 'EasyOCR Neural Engine';
+    if (engine.toLowerCase().includes('tesseract')) return 'Tesseract OCR Engine';
+    return engine.replace(/_/g, ' ');
   };
 
   // Load health, dataset manifest, and synthetic test cases on mount
@@ -155,6 +170,13 @@ export const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const initialSample = queryParams?.get('sample');
+    if (initialSample) {
+      handleSelectSample(initialSample);
+    }
+  }, []);
 
   // Handler: Run Cross-Validation
   const handleRunCrossValidation = async () => {
@@ -327,36 +349,64 @@ export const App: React.FC = () => {
                     institutionName={(currentDoc.extracted_fields?.institution_name?.normalized_value as string) || null}
                     applicationId={(currentDoc.extracted_fields?.application_id?.normalized_value as string) || null}
                     academicYear={(currentDoc.extracted_fields?.academic_year?.normalized_value as string) || null}
-                    onOpenAdjudication={() => setIsReviewDrawerOpen(true)}
+                    onOpenAdjudication={() => {
+                      setSelectedFindingIdForReview(undefined);
+                      setIsReviewDrawerOpen(true);
+                    }}
+                    onNewVerification={() => {
+                      setCurrentDoc(null);
+                      setUploadedPdfUrl(null);
+                      setActiveSampleId(undefined);
+                    }}
                   />
 
-                  {/* Horizontal Workspace Sub-Tabs */}
-                  <div className="ledger-tabs">
+                  {/* Horizontal Workspace Sub-Tabs with ARIA */}
+                  <div className="ledger-tabs" role="tablist" aria-label="Document Verification Sub-Views">
                     <button
+                      role="tab"
+                      id="tab-findings"
+                      aria-controls="tabpanel-findings"
+                      aria-selected={activeSubTab === 'findings'}
                       onClick={() => setActiveSubTab('findings')}
                       className={`ledger-tab ${activeSubTab === 'findings' ? 'active' : ''}`}
                     >
                       Findings ({currentDoc.normalized_findings.length})
                     </button>
                     <button
+                      role="tab"
+                      id="tab-fields"
+                      aria-controls="tabpanel-fields"
+                      aria-selected={activeSubTab === 'fields'}
                       onClick={() => setActiveSubTab('fields')}
                       className={`ledger-tab ${activeSubTab === 'fields' ? 'active' : ''}`}
                     >
                       Extracted Fields ({Object.keys(currentDoc.extracted_fields).length})
                     </button>
                     <button
+                      role="tab"
+                      id="tab-cross"
+                      aria-controls="tabpanel-cross"
+                      aria-selected={activeSubTab === 'cross'}
                       onClick={() => setActiveSubTab('cross')}
                       className={`ledger-tab ${activeSubTab === 'cross' ? 'active' : ''}`}
                     >
                       Cross-Document Checks
                     </button>
                     <button
+                      role="tab"
+                      id="tab-doc-view"
+                      aria-controls="tabpanel-doc-view"
+                      aria-selected={activeSubTab === 'doc_view'}
                       onClick={() => setActiveSubTab('doc_view')}
                       className={`ledger-tab ${activeSubTab === 'doc_view' ? 'active' : ''}`}
                     >
                       Document View
                     </button>
                     <button
+                      role="tab"
+                      id="tab-audit"
+                      aria-controls="tabpanel-audit"
+                      aria-selected={activeSubTab === 'audit'}
                       onClick={() => setActiveSubTab('audit')}
                       className={`ledger-tab ${activeSubTab === 'audit' ? 'active' : ''}`}
                     >
@@ -366,40 +416,52 @@ export const App: React.FC = () => {
 
                   {/* Sub-Tab 1: Findings Workspace (Table + Evidence Inspector) */}
                   {activeSubTab === 'findings' && (
-                    <ValidationFindingsList
-                      findings={currentDoc.normalized_findings}
-                      adjudications={adjudications}
-                      onOpenAdjudicationForFinding={() => setIsReviewDrawerOpen(true)}
-                      onOpenReviewAll={() => setIsReviewDrawerOpen(true)}
-                      extractedFields={currentDoc.extracted_fields}
-                      totalPages={currentDoc.processing_metadata?.total_pages}
-                      documentFilename={currentDoc.filename}
-                      pdfUrl={uploadedPdfUrl}
-                    />
+                    <div role="tabpanel" id="tabpanel-findings" aria-labelledby="tab-findings">
+                      <ValidationFindingsList
+                        findings={currentDoc.normalized_findings}
+                        adjudications={adjudications}
+                        onOpenAdjudicationForFinding={(fid) => {
+                          setSelectedFindingIdForReview(fid);
+                          setIsReviewDrawerOpen(true);
+                        }}
+                        onOpenReviewAll={() => {
+                          setSelectedFindingIdForReview(undefined);
+                          setIsReviewDrawerOpen(true);
+                        }}
+                        extractedFields={currentDoc.extracted_fields}
+                        totalPages={currentDoc.processing_metadata?.total_pages}
+                        documentFilename={currentDoc.filename}
+                        pdfUrl={uploadedPdfUrl}
+                      />
+                    </div>
                   )}
 
                   {/* Sub-Tab 2: Extracted Fields Card */}
                   {activeSubTab === 'fields' && (
-                    <ExtractedFieldsCard
-                      fields={currentDoc.extracted_fields}
-                      tables={currentDoc.table_data}
-                      processingMetadata={currentDoc.processing_metadata}
-                    />
+                    <div role="tabpanel" id="tabpanel-fields" aria-labelledby="tab-fields">
+                      <ExtractedFieldsCard
+                        fields={currentDoc.extracted_fields}
+                        tables={currentDoc.table_data}
+                        processingMetadata={currentDoc.processing_metadata}
+                      />
+                    </div>
                   )}
 
                   {/* Sub-Tab 3: Cross-Document Checks */}
                   {activeSubTab === 'cross' && (
-                    <CrossDocumentMatrix
-                      onRunCrossValidation={handleRunCrossValidation}
-                      crossReport={crossReport}
-                      isLoading={isLoading}
-                      activeDocumentsCount={health?.active_documents_in_session || (currentDoc ? 1 : 0)}
-                    />
+                    <div role="tabpanel" id="tabpanel-cross" aria-labelledby="tab-cross">
+                      <CrossDocumentMatrix
+                        onRunCrossValidation={handleRunCrossValidation}
+                        crossReport={crossReport}
+                        isLoading={isLoading}
+                        activeDocumentsCount={health?.active_documents_in_session || (currentDoc ? 1 : 0)}
+                      />
+                    </div>
                   )}
 
                   {/* Sub-Tab 4: Document View (Visual Page Representation) */}
                   {activeSubTab === 'doc_view' && (
-                    <div className="surface-card" style={{ padding: '24px' }}>
+                    <div role="tabpanel" id="tabpanel-doc-view" aria-labelledby="tab-doc-view" className="surface-card" style={{ padding: '24px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                         <div>
                           <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
@@ -451,7 +513,7 @@ export const App: React.FC = () => {
 
                   {/* Sub-Tab 5: Audit Trail */}
                   {activeSubTab === 'audit' && (
-                    <div className="surface-card" style={{ padding: '24px' }}>
+                    <div role="tabpanel" id="tabpanel-audit" aria-labelledby="tab-audit" className="surface-card" style={{ padding: '24px' }}>
                       <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <History size={16} />
                         <span>Regulatory Audit Trail & Decision Log</span>
@@ -571,11 +633,11 @@ export const App: React.FC = () => {
 
                 <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-subtle)', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>OCR ENGINE</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--color-brand)', marginTop: '2px' }}>
-                    {health?.ocr_engine || 'synthetic_test_engine'}
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--color-brand)', marginTop: '2px' }}>
+                    {formatEngineLabel(health?.ocr_engine)}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Image preprocessing + fallback
+                    Image preprocessing + deterministic fallback
                   </div>
                 </div>
 
@@ -585,7 +647,7 @@ export const App: React.FC = () => {
                     {health?.dataset_documents_available ?? datasetDocs.length} Documents
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    data_manifest.csv
+                    Pre-indexed document repository
                   </div>
                 </div>
 
@@ -681,11 +743,15 @@ export const App: React.FC = () => {
       {currentDoc && (
         <HumanReviewDrawer
           isOpen={isReviewDrawerOpen}
-          onClose={() => setIsReviewDrawerOpen(false)}
+          onClose={() => {
+            setIsReviewDrawerOpen(false);
+            setSelectedFindingIdForReview(undefined);
+          }}
           findings={currentDoc.normalized_findings}
           documentId={currentDoc.document_id}
           adjudications={adjudications}
           onSaveAdjudication={handleSaveAdjudication}
+          initialFindingId={selectedFindingIdForReview}
         />
       )}
     </div>

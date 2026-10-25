@@ -9,6 +9,18 @@ interface DatasetSampleSelectorProps {
   activeDocId?: string;
 }
 
+const DOC_TYPE_DISPLAY_NAMES: Record<string, string> = {
+  aicte_eoa: 'AICTE EoA',
+  aicte_mandatory_disclosure: 'Mandatory Disclosure',
+  naac_certificate: 'NAAC Certificate',
+  nba_accreditation: 'NBA Accreditation',
+};
+
+export const formatDocTypeDisplay = (type?: string | null): string => {
+  if (!type || type === 'unknown') return 'Unclassified';
+  return DOC_TYPE_DISPLAY_NAMES[type] || type.replace(/_/g, ' ');
+};
+
 export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
   documents,
   onSelectSample,
@@ -45,7 +57,7 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
             Pre-Cataloged Dataset Documents
           </h3>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            One-click execution of the regulatory verification pipeline on real and scanned documents from data_manifest.csv
+            One-click execution of the regulatory verification pipeline on real and scanned documents from the pre-indexed regulatory dataset
           </p>
         </div>
 
@@ -107,8 +119,13 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No dataset documents match the query.
+                <td colSpan={8} style={{ padding: '36px 20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                    No dataset documents match your search
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Try searching by document ID, filename, or selecting another category.
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -135,8 +152,8 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
                       </span>
                     </td>
                     <td>
-                      <span className="code-mono" style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                        {doc.document_type}
+                      <span style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)' }} title={doc.document_type}>
+                        {formatDocTypeDisplay(doc.document_type)}
                       </span>
                     </td>
                     <td>{doc.page_count}</td>

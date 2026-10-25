@@ -119,9 +119,7 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
   }, [findings]);
 
   // Genuine values (no fabricated defaults)
-  const activePageNumber = activeEvidence?.page_number !== null && activeEvidence?.page_number !== undefined
-    ? activeEvidence.page_number
-    : currentPage;
+  const activePageNumber = currentPage;
 
   const boundingBox = activeEvidence?.bounding_box || null;
 
@@ -153,14 +151,14 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
   const getSeverityBadge = (severity: RuleSeverity) => {
     switch (severity) {
       case 'CRITICAL':
-        return <span className="badge badge-sev-critical badge-pill">Critical</span>;
+        return <span className="badge badge-sev-critical badge-pill">● Critical</span>;
       case 'HIGH':
-        return <span className="badge badge-sev-high badge-pill">High</span>;
+        return <span className="badge badge-sev-high badge-pill">▲ High</span>;
       case 'MEDIUM':
-        return <span className="badge badge-sev-medium badge-pill">Medium</span>;
+        return <span className="badge badge-sev-medium badge-pill">■ Medium</span>;
       case 'LOW':
       case 'INFO':
-        return <span className="badge badge-sev-low badge-pill">Low</span>;
+        return <span className="badge badge-sev-low badge-pill">○ Low</span>;
     }
   };
 
@@ -355,20 +353,18 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
             <table className="ledger-table">
               <thead>
                 <tr>
-                  <th style={{ width: '42px', textAlign: 'center' }}>#</th>
-                  <th>Rule ID</th>
-                  <th>Rule Name</th>
-                  <th>Type</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                  <th>Affected Fields</th>
-                  <th style={{ width: '100px', textAlign: 'right' }}>Action</th>
+                  <th style={{ width: '38px', textAlign: 'center' }}>#</th>
+                  <th>Rule & Code</th>
+                  <th style={{ width: '100px' }}>Category</th>
+                  <th style={{ width: '90px' }}>Severity</th>
+                  <th style={{ width: '110px' }}>Outcome</th>
+                  <th style={{ width: '80px', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredFindings.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       No verification findings match the current filter criteria.
                     </td>
                   </tr>
@@ -383,10 +379,11 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                         key={f.finding_id}
                         className={isSelected ? 'active-row' : ''}
                         onClick={() => setSelectedFindingId(f.finding_id)}
+                        style={{ cursor: 'pointer' }}
                       >
                         {/* Dot indicator & row number */}
                         <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                             <span style={{
                               width: '7px',
                               height: '7px',
@@ -400,35 +397,34 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                           </div>
                         </td>
 
-                        {/* Rule ID */}
+                        {/* Rule Name (Prominent) & Rule ID (Secondary Monospace) */}
                         <td>
-                          <div className="code-mono" style={{ fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '12.5px', lineHeight: '1.25' }}>
+                            {f.rule_name}
+                          </div>
+                          <div className="code-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
                             {f.rule_id}
                           </div>
                           {decided && (
                             <div style={{
-                              marginTop: '2px',
+                              marginTop: '3px',
                               fontSize: '10px',
-                              color: '#15803d',
-                              display: 'flex',
+                              color: 'var(--color-pass-text)',
+                              display: 'inline-flex',
                               alignItems: 'center',
                               gap: '3px',
                               fontWeight: '600',
+                              backgroundColor: 'var(--color-pass-bg)',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
                             }}>
-                              <Check size={10} style={{ strokeWidth: 3 }} />
+                              <Check size={9} style={{ strokeWidth: 3 }} />
                               {decided.decision}
                             </div>
                           )}
                         </td>
 
-                        {/* Rule Name */}
-                        <td>
-                          <div style={{ fontWeight: '500', color: 'var(--text-primary)', lineHeight: '1.3' }}>
-                            {f.rule_name}
-                          </div>
-                        </td>
-
-                        {/* Type */}
+                        {/* Category */}
                         <td>
                           {getCategoryBadge(f.category)}
                         </td>
@@ -438,63 +434,44 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                           {getSeverityBadge(f.severity)}
                         </td>
 
-                        {/* Status */}
+                        {/* Outcome / Status */}
                         <td>
                           {getStatusBadge(f.outcome)}
                         </td>
 
-                        {/* Affected Fields */}
-                        <td>
-                          <span className="code-mono" style={{ color: 'var(--text-secondary)' }}>
-                            {f.affected_fields && f.affected_fields.length > 0
-                              ? f.affected_fields.join(', ')
-                              : '—'}
-                          </span>
-                        </td>
-
-                        {/* Action buttons */}
+                        {/* Streamlined Action Button */}
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            {isReviewable ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (onOpenAdjudicationForFinding) {
-                                    onOpenAdjudicationForFinding(f.finding_id);
-                                  } else if (onOpenReviewAll) {
-                                    onOpenReviewAll();
-                                  }
-                                }}
-                                className="btn btn-outline-amber btn-sm"
-                                style={{ padding: '3px 9px', fontSize: '11.5px', fontWeight: '600' }}
-                              >
-                                <span>Review</span>
-                                <span>→</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedFindingId(f.finding_id);
-                                }}
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '3px 8px', fontSize: '11.5px' }}
-                              >
-                                <span>View</span>
-                                <span>→</span>
-                              </button>
-                            )}
-
+                          {isReviewable ? (
                             <button
                               type="button"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{ background: 'none', color: 'var(--text-light)', padding: '2px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenAdjudicationForFinding) {
+                                  onOpenAdjudicationForFinding(f.finding_id);
+                                } else if (onOpenReviewAll) {
+                                  onOpenReviewAll();
+                                }
+                              }}
+                              className="btn btn-outline-amber btn-sm"
+                              style={{ padding: '3px 8px', fontSize: '11px', fontWeight: '600' }}
                             >
-                              <MoreHorizontal size={14} />
+                              <span>Review</span>
+                              <span>→</span>
                             </button>
-                          </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFindingId(f.finding_id);
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '3px 7px', fontSize: '11px' }}
+                            >
+                              <span>Inspect</span>
+                              <span>→</span>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -516,7 +493,7 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
             borderBottom: '1px solid var(--border-subtle)',
           }}>
             <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
-              Page {activePageNumber} {totalPages ? `/ ${totalPages}` : ''}
+              Page {currentPage} {totalPages ? `of ${totalPages}` : ''}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -547,6 +524,7 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                 className="btn btn-secondary btn-sm"
                 style={{ padding: '4px 6px' }}
                 title="Previous page"
+                aria-label="Previous page"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -556,6 +534,7 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                 className="btn btn-secondary btn-sm"
                 style={{ padding: '4px 6px' }}
                 title="Next page"
+                aria-label="Next page"
               >
                 <ChevronRight size={14} />
               </button>
@@ -565,8 +544,9 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
               <button
                 type="button"
                 onClick={() => setZoomLevel((z) => Math.max(50, z - 10))}
-                style={{ background: 'none', color: 'var(--text-secondary)', padding: '2px' }}
+                style={{ background: 'none', color: 'var(--text-secondary)', padding: '2px', cursor: 'pointer' }}
                 title="Zoom out"
+                aria-label="Zoom out"
               >
                 <ZoomOut size={14} />
               </button>
@@ -576,8 +556,9 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
               <button
                 type="button"
                 onClick={() => setZoomLevel((z) => Math.min(200, z + 10))}
-                style={{ background: 'none', color: 'var(--text-secondary)', padding: '2px' }}
+                style={{ background: 'none', color: 'var(--text-secondary)', padding: '2px', cursor: 'pointer' }}
                 title="Zoom in"
+                aria-label="Zoom in"
               >
                 <ZoomIn size={14} />
               </button>
@@ -594,7 +575,7 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
               border: '1px solid var(--border-color)',
             }}>
               <iframe
-                src={`${pdfUrl}#page=${activePageNumber}`}
+                src={`${pdfUrl}#page=${currentPage}&zoom=${zoomLevel}&toolbar=0&navpanes=0`}
                 title="Real Document PDF View"
                 style={{ width: '100%', height: '100%', border: 'none' }}
               />
@@ -664,16 +645,22 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     marginBottom: '10px',
                     paddingBottom: '8px',
                     borderBottom: '1px solid var(--border-subtle)',
+                    gap: '12px',
                   }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                      Evaluated Rule Evidence
-                    </span>
-                    <span className="code-mono" style={{ fontSize: '11px', color: 'var(--color-brand)' }}>
-                      {activeFinding?.rule_id || 'N/A'}
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', lineHeight: '1.3' }}>
+                        {activeFinding?.rule_name || 'Evaluated Rule Evidence'}
+                      </div>
+                      <div className="code-mono" style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {activeFinding?.rule_id || 'N/A'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      Evidence Inspector
                     </span>
                   </div>
 
@@ -835,9 +822,48 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
 
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Confidence</div>
-                  <div className="badge badge-pass badge-pill" style={{ fontSize: '11.5px', fontWeight: '700', padding: '2px 8px' }}>
-                    {confidenceDisplay}
-                  </div>
+                  {activeEvidence?.confidence !== null && activeEvidence?.confidence !== undefined ? (
+                    <div
+                      className={`badge badge-pill ${
+                        activeEvidence.confidence >= 0.8
+                          ? 'badge-pass'
+                          : activeEvidence.confidence >= 0.65
+                          ? 'badge-inconclusive'
+                          : 'badge-fail'
+                      }`}
+                      style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px' }}
+                    >
+                      {confidenceDisplay}
+                    </div>
+                  ) : activeEvidence?.extraction_method === 'digital' ? (
+                    <div
+                      className="badge badge-pill"
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: '600',
+                        padding: '2px 8px',
+                        backgroundColor: 'var(--bg-surface-subtle)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)',
+                      }}
+                    >
+                      {confidenceDisplay}
+                    </div>
+                  ) : (
+                    <div
+                      className="badge badge-pill"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        padding: '2px 8px',
+                        backgroundColor: 'var(--bg-surface-subtle)',
+                        color: 'var(--text-muted)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      {confidenceDisplay}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

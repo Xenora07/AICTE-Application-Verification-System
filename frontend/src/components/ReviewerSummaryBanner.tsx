@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, Info, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, Info, XCircle, FileUp } from 'lucide-react';
 import { ReviewerSummary } from '../types/api';
 
 interface ReviewerSummaryBannerProps {
@@ -16,6 +16,7 @@ interface ReviewerSummaryBannerProps {
   applicationId?: string | null;
   academicYear?: string | null;
   onOpenAdjudication: () => void;
+  onNewVerification?: () => void;
 }
 
 export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
@@ -32,16 +33,19 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
   applicationId,
   academicYear,
   onOpenAdjudication,
+  onNewVerification,
 }) => {
   const [showMetadataModal, setShowMetadataModal] = useState(false);
 
   const formattedSize = fileSizeBytes && fileSizeBytes > 0
-    ? `${(fileSizeBytes / 1024).toFixed(1)} KB`
-    : 'Size: Not available';
+    ? fileSizeBytes >= 1024 * 1024
+      ? `${(fileSizeBytes / (1024 * 1024)).toFixed(2)} MB`
+      : `${(fileSizeBytes / 1024).toFixed(1)} KB`
+    : 'Size unavailable';
 
   const formattedPages = totalPages !== undefined && totalPages > 0
     ? `${totalPages} ${totalPages === 1 ? 'page' : 'pages'}`
-    : 'Page count: Not available';
+    : 'Page count unavailable';
 
   const formattedDate = uploadedAt
     ? new Date(uploadedAt).toLocaleString('en-IN', {
@@ -51,41 +55,53 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
         hour: '2-digit',
         minute: '2-digit',
       })
-    : 'Upload time: Not available';
+    : 'Time unavailable';
 
   const getStatusBadgeConfig = () => {
-    const isNeedsReview = summary.requires_human_review || processingStatus.includes('WARNING') || processingStatus === 'NEEDS_HUMAN_REVIEW';
-    const isFailed = processingStatus === 'ACTION_REQUIRED' || processingStatus === 'REJECTED' || summary.overall_status === 'REJECTED';
+    const isUnclassified = !documentType || documentType === 'unknown' || summary.total_rules_evaluated === 0;
+    const isFailed = summary.failed_rules > 0 || processingStatus === 'ACTION_REQUIRED' || processingStatus === 'REJECTED' || summary.overall_status === 'REJECTED';
+    const isNeedsReview = summary.requires_human_review || summary.inconclusive_rules > 0 || processingStatus.includes('WARNING') || processingStatus === 'NEEDS_HUMAN_REVIEW';
+
+    if (isUnclassified) {
+      return {
+        icon: <Info size={20} style={{ color: 'var(--color-amber-accent)' }} />,
+        title: 'UNCLASSIFIED / NO EXTRACTED FIELDS',
+        subtitle: 'Document type unrecognized or no fields mapped',
+        bg: 'var(--bg-surface-subtle)',
+        border: 'var(--border-color)',
+        textColor: 'var(--text-secondary)',
+      };
+    }
 
     if (isFailed) {
       return {
-        icon: <XCircle size={22} style={{ color: '#ef4444' }} />,
-        title: processingStatus || 'ACTION_REQUIRED',
-        subtitle: 'Critical regulatory non-compliance detected',
-        bg: '#fee2e2',
-        border: '#fca5a5',
-        textColor: '#b91c1c',
+        icon: <XCircle size={20} style={{ color: '#ef4444' }} />,
+        title: 'NON-COMPLIANT',
+        subtitle: `${summary.failed_rules} critical regulatory discrepancy detected`,
+        bg: 'var(--color-fail-bg)',
+        border: 'var(--color-fail-border)',
+        textColor: 'var(--color-fail-text)',
       };
     }
 
     if (isNeedsReview) {
       return {
-        icon: <AlertTriangle size={22} style={{ color: '#d97706' }} />,
-        title: processingStatus || 'SUCCESS_WITH_WARNINGS',
-        subtitle: 'Needs human adjudication',
-        bg: '#fef3c7',
-        border: '#fde68a',
-        textColor: '#b45309',
+        icon: <AlertTriangle size={20} style={{ color: '#d97706' }} />,
+        title: 'HUMAN REVIEW REQUIRED',
+        subtitle: `${summary.inconclusive_rules} finding(s) require regulatory adjudication`,
+        bg: 'var(--color-inconclusive-bg)',
+        border: 'var(--color-inconclusive-border)',
+        textColor: 'var(--color-inconclusive-text)',
       };
     }
 
     return {
-      icon: <CheckCircle2 size={22} style={{ color: '#16a34a' }} />,
-      title: processingStatus || 'VERIFIED',
+      icon: <CheckCircle2 size={20} style={{ color: '#16a34a' }} />,
+      title: 'COMPLIANT',
       subtitle: 'Deterministic compliance verified',
-      bg: '#dcfce7',
-      border: '#bbf7d0',
-      textColor: '#15803d',
+      bg: 'var(--color-pass-bg)',
+      border: 'var(--color-pass-border)',
+      textColor: 'var(--color-pass-text)',
     };
   };
 
@@ -95,11 +111,11 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 340px',
-      gap: '16px',
-      marginBottom: '20px',
+      gap: '14px',
+      marginBottom: '16px',
     }}>
       {/* Left: Current Document Metadata Box */}
-      <div className="surface-card" style={{ padding: '18px 22px' }}>
+      <div className="surface-card" style={{ padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
           {/* Red PDF Icon Badge */}
           <div style={{
@@ -123,19 +139,47 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{
-                fontSize: '10px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: 'var(--text-muted)',
-              }}>
-                CURRENT DOCUMENT
-              </span>
-              <span className="badge badge-pass badge-pill" style={{ fontSize: '10px', padding: '1px 8px' }}>
-                ✓ Processed
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  color: 'var(--text-muted)',
+                }}>
+                  CURRENT DOCUMENT
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  padding: '2px 8px',
+                  borderRadius: '999px',
+                  backgroundColor: 'var(--bg-surface-subtle)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-secondary)',
+                  fontWeight: '600',
+                }}>
+                  ✓ Processed
+                </span>
+                {(documentId?.startsWith('TC_SYNTH') || filename?.toLowerCase().includes('synth')) && (
+                  <span className="badge badge-pill badge-cat-authenticity" style={{ fontSize: '10px' }}>
+                    Synthetic Scenario
+                  </span>
+                )}
+              </div>
+
+              {onNewVerification && (
+                <button
+                  type="button"
+                  onClick={onNewVerification}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '11px', padding: '3px 9px' }}
+                  title="Clear active document and upload or select another document"
+                >
+                  <FileUp size={12} />
+                  <span>Verify Another Document</span>
+                </button>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
@@ -163,7 +207,7 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
             }}>
               <span>Doc ID: <strong className="code-mono" style={{ color: 'var(--text-primary)' }}>{documentId || 'Not available'}</strong></span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
-              <span>Type: <strong className="code-mono" style={{ color: 'var(--text-primary)' }}>{documentType || 'Not available'}</strong></span>
+              <span>Type: <strong className="code-mono" style={{ color: 'var(--text-primary)' }}>{!documentType || documentType === 'unknown' ? 'Unclassified' : documentType}</strong></span>
               <span style={{ color: 'var(--border-color)' }}>|</span>
               <span>SHA-256: <strong className="code-mono" style={{ color: 'var(--text-muted)' }}>{sha256 ? `${sha256.substring(0, 16)}...` : 'Not available'}</strong></span>
             </div>
@@ -241,7 +285,7 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
 
       {/* Right: Overall Verification Status Card */}
       <div className="surface-card" style={{
-        padding: '18px 20px',
+        padding: '14px 18px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -252,15 +296,15 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
           textTransform: 'uppercase',
           letterSpacing: '0.05em',
           color: 'var(--text-muted)',
-          marginBottom: '8px',
+          marginBottom: '6px',
         }}>
           Overall Verification Status
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: '40px',
-            height: '40px',
+            width: '38px',
+            height: '38px',
             borderRadius: '50%',
             backgroundColor: statusConfig.bg,
             border: `1px solid ${statusConfig.border}`,
@@ -274,15 +318,15 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
 
           <div>
             <div style={{
-              fontSize: '14.5px',
+              fontSize: '14px',
               fontWeight: '700',
               color: statusConfig.textColor,
-              lineHeight: '1.2',
+              lineHeight: '1.25',
             }}>
               {statusConfig.title}
             </div>
             <div style={{
-              fontSize: '11.5px',
+              fontSize: '11px',
               color: 'var(--text-secondary)',
               marginTop: '2px',
             }}>
@@ -292,14 +336,19 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
         </div>
 
         {summary.requires_human_review && (
-          <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
-            <button
-              onClick={onOpenAdjudication}
-              className="btn btn-outline-amber btn-sm"
-              style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px' }}
-            >
-              Adjudicate Evidence ({summary.inconclusive_rules + summary.failed_rules} items)
-            </button>
+          <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+            {(() => {
+              const pendingCount = summary.inconclusive_rules + summary.failed_rules;
+              return (
+                <button
+                  onClick={onOpenAdjudication}
+                  className="btn btn-outline-amber btn-sm"
+                  style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px' }}
+                >
+                  Adjudicate Evidence ({pendingCount} {pendingCount === 1 ? 'item' : 'items'})
+                </button>
+              );
+            })()}
           </div>
         )}
       </div>
