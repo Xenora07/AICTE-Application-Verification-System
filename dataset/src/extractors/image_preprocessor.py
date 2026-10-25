@@ -4,7 +4,10 @@ Includes grayscale conversion, noise reduction, CLAHE contrast enhancement, and 
 """
 
 from typing import Tuple
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 
 
@@ -17,6 +20,9 @@ def preprocess_image_for_ocr(
     Preprocess an input BGR or RGB image for optimal OCR extraction.
     Returns: (preprocessed_image_bgr, detected_skew_angle_degrees)
     """
+    if cv2 is None:
+        return image, 0.0
+
     if len(image.shape) == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:

@@ -10,3 +10,7 @@ frontend/dist/
 .pytest_cache/
 .vscode/
 .idea/
+AICTE_Dataset.zip
+*.zip
+temp_uploads/
+*.log

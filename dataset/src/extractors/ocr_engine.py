@@ -8,7 +8,10 @@ Also provides SyntheticOCREngine for deterministic, fast testing of OCR failure 
 import hashlib
 import logging
 from typing import Any, Dict, List, Optional
-import cv2
+try:
+    import cv2
+except ImportError:
+    cv2 = None
 import numpy as np
 import pymupdf
 
