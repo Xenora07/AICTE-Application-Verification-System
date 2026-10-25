@@ -17,6 +17,8 @@ from backend.security.privacy import (
     mask_extraction_payload,
     enforce_privacy_policy,
     sanitize_log_message,
+    mask_pii_text,
+    apply_privacy_masking,
 )
 from backend.security.authenticity import (
     DocumentAuthenticityReport,
@@ -26,6 +28,7 @@ from backend.security.authenticity import (
     inspect_pdf_metadata,
     assess_document_authenticity,
     verify_duplicate_via_validator,
+    AuthenticityService,
 )
 from backend.security.findings import (
     UnifiedFindingsReport,
@@ -35,6 +38,7 @@ from backend.security.findings import (
     deduplicate_findings,
     prioritize_findings,
     filter_report_for_privacy,
+    FindingsNormalizer,
 )
 
 __all__ = [
@@ -52,6 +56,8 @@ __all__ = [
     "mask_extraction_payload",
     "enforce_privacy_policy",
     "sanitize_log_message",
+    "mask_pii_text",
+    "apply_privacy_masking",
     "DocumentAuthenticityReport",
     "DuplicateHashRegistry",
     "compute_file_sha256",
@@ -59,6 +65,7 @@ __all__ = [
     "inspect_pdf_metadata",
     "assess_document_authenticity",
     "verify_duplicate_via_validator",
+    "AuthenticityService",
     "UnifiedFindingsReport",
     "UnifiedFindingsEngine",
     "unify_findings",
@@ -66,4 +73,5 @@ __all__ = [
     "deduplicate_findings",
     "prioritize_findings",
     "filter_report_for_privacy",
+    "FindingsNormalizer",
 ]

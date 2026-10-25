@@ -1,0 +1,344 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Database, Upload, Sun, Moon, User, Settings, Activity, ChevronDown, XCircle } from 'lucide-react';
+import { SystemHealth } from '../types/api';
+
+interface NavbarProps {
+  health: SystemHealth | null;
+  onRefreshHealth: () => void;
+  datasetCount: number;
+  onOpenUpload: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+  draftCount?: number;
+  onClearSessionDrafts?: () => void;
+  onSelectDestination?: (dest: any) => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  health,
+  onRefreshHealth,
+  datasetCount,
+  onOpenUpload,
+  theme,
+  onToggleTheme,
+  draftCount = 0,
+  onClearSessionDrafts,
+  onSelectDestination,
+}) => {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false);
+      }
+    };
+    if (isProfileOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProfileOpen]);
+
+  return (
+    <header className="app-header">
+      {/* Title & Tagline */}
+      <div>
+        <h1 style={{
+          fontSize: '17px',
+          fontWeight: '700',
+          letterSpacing: '-0.02em',
+          color: 'var(--text-primary)',
+          lineHeight: '1.2',
+        }}>
+          AICTE Application Verification System
+        </h1>
+        <p style={{
+          fontSize: '11.5px',
+          color: 'var(--text-secondary)',
+          marginTop: '2px',
+        }}>
+          Regulatory Compliance • Document Authenticity • Consistency Gateway
+        </p>
+      </div>
+
+      {/* Status, Counters & CTAs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Backend Online status pill */}
+        <div
+          onClick={onRefreshHealth}
+          title="Click to re-ping backend health endpoint"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+          }}
+        >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: health?.status === 'healthy' ? '#22c55e' : health ? '#ef4444' : '#f59e0b',
+              display: 'inline-block',
+              boxShadow: health?.status === 'healthy' ? '0 0 6px #22c55e' : '0 0 6px #f59e0b',
+            }}
+          />
+          <span>
+            {health?.status === 'healthy'
+              ? `Backend Online (${health.ocr_engine || 'OCR Ready'})`
+              : health
+              ? `Backend Status: ${health.status}`
+              : 'Connecting to API...'}
+          </span>
+        </div>
+
+        {/* Dataset docs count */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '12px',
+          color: 'var(--text-secondary)',
+          padding: '4px 10px',
+          borderRadius: '6px',
+          backgroundColor: 'var(--bg-hover)',
+          border: '1px solid var(--border-subtle)',
+        }}>
+          <Database size={14} style={{ color: 'var(--text-muted)' }} />
+          <span>{datasetCount > 0 ? `${datasetCount} dataset docs` : 'Dataset catalog unavailable'}</span>
+        </div>
+
+        {/* Theme button */}
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          {theme === 'dark' ? <Sun size={15} style={{ color: '#f59e0b' }} /> : <Moon size={15} />}
+        </button>
+
+        {/* Guest Profile Dropdown in Header */}
+        <div style={{ position: 'relative' }} ref={profileRef}>
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px 4px 6px',
+              borderRadius: '999px',
+              backgroundColor: isProfileOpen ? 'var(--bg-active)' : 'var(--bg-hover)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease',
+            }}
+            title="Reviewer Profile: Guest Session (Not authenticated)"
+            aria-expanded={isProfileOpen}
+            aria-haspopup="true"
+          >
+            <div style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-secondary)',
+            }}>
+              <User size={13} />
+            </div>
+            <span style={{ fontSize: '11.5px', fontWeight: '600' }}>Guest</span>
+            <ChevronDown
+              size={12}
+              style={{
+                color: 'var(--text-muted)',
+                transform: isProfileOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.2s ease',
+              }}
+            />
+          </button>
+
+          {isProfileOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                width: '280px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                boxShadow: 'var(--shadow-dropdown)',
+                padding: '14px',
+                zIndex: 60,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+                <div style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--bg-hover)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-secondary)',
+                  flexShrink: 0,
+                }}>
+                  <User size={17} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      Guest Session
+                    </span>
+                    <span className="badge badge-pill" style={{ fontSize: '9px', padding: '1px 5px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
+                      Unauthenticated
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Regulatory Auditor Mode
+                  </div>
+                </div>
+              </div>
+
+              {/* Status details */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface-subtle)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '6px',
+                padding: '8px 10px',
+                fontSize: '11.5px',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '5px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Role:</span>
+                  <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Auditor (Guest)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Adjudications:</span>
+                  <span style={{ fontWeight: '600', color: draftCount > 0 ? '#15803d' : 'var(--text-muted)' }}>
+                    {draftCount > 0 ? `${draftCount} draft(s)` : 'None'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Persistence:</span>
+                  <span style={{ color: '#b45309' }}>In-Memory Session</span>
+                </div>
+              </div>
+
+              {/* Functional Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                {onSelectDestination && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        onSelectDestination('settings');
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ width: '100%', justifyContent: 'flex-start', fontSize: '11.5px', padding: '6px 10px' }}
+                    >
+                      <Settings size={13} />
+                      <span>Audit Settings</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        onSelectDestination('diagnostics');
+                      }}
+                      className="btn btn-secondary btn-sm"
+                      style={{ width: '100%', justifyContent: 'flex-start', fontSize: '11.5px', padding: '6px 10px' }}
+                    >
+                      <Activity size={13} />
+                      <span>Diagnostics</span>
+                    </button>
+                  </>
+                )}
+
+                {onClearSessionDrafts && draftCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearSessionDrafts();
+                      setIsProfileOpen(false);
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      fontSize: '11.5px',
+                      padding: '6px 10px',
+                      backgroundColor: 'var(--color-fail-bg)',
+                      color: 'var(--color-fail-text)',
+                      border: '1px solid var(--color-fail-border)',
+                    }}
+                  >
+                    <XCircle size={13} />
+                    <span>Clear Drafts ({draftCount})</span>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
+                * Decisions are stored in session memory and not sent to a remote database.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Upload Document Primary CTA */}
+        <button
+          type="button"
+          onClick={onOpenUpload}
+          className="btn btn-brand"
+          style={{ padding: '8px 16px', fontSize: '13px' }}
+        >
+          <Upload size={15} />
+          <span>Upload Document</span>
+        </button>
+      </div>
+    </header>
+  );
+};

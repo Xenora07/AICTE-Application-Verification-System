@@ -153,7 +153,7 @@ class UnifiedFindingsReport(BaseModel):
 # ==============================================================================
 
 
-def normalize_finding(item: Any) -> Optional[ValidationFinding]:
+def _normalize_validation_finding(item: Any) -> Optional[ValidationFinding]:
     """
     Safely convert a finding instance, report object, or dictionary into a canonical ValidationFinding.
     Never mutates input objects. Handles missing or malformed fields safely with robust defaults.
@@ -259,7 +259,7 @@ def extract_findings_from_source(source: Any) -> List[ValidationFinding]:
     if hasattr(source, "findings") and isinstance(source.findings, (list, tuple)):
         result = []
         for f in source.findings:
-            normalized = normalize_finding(f)
+            normalized = _normalize_validation_finding(f)
             if normalized:
                 result.append(normalized)
         return result
@@ -272,7 +272,7 @@ def extract_findings_from_source(source: Any) -> List[ValidationFinding]:
         return result
 
     # Single finding item
-    single = normalize_finding(source)
+    single = _normalize_validation_finding(source)
     return [single] if single else []
 
 
@@ -644,3 +644,143 @@ def unify_findings(*sources: Any, application_id: Optional[str] = None) -> Unifi
     engine = UnifiedFindingsEngine(application_id=application_id)
     engine.ingest(*sources)
     return engine.compile()
+
+# ==============================================================================
+# Phase 9: Dashboard Finding Normalization & Reviewer Summary (Person 4 Integration)
+# ==============================================================================
+
+try:
+    from backend.common.models import (
+        NormalizedFinding,
+        ReviewerSummary,
+    )
+except ImportError:
+    NormalizedFinding = Any  # type: ignore[misc, assignment]
+    ReviewerSummary = Any  # type: ignore[misc, assignment]
+
+
+def normalize_finding(
+    item: Any,
+    category: Optional[Literal["COMPLIANCE", "AUTHENTICITY", "PRIVACY", "CONSISTENCY"]] = None,
+    prefix: str = "FINDING",
+    index: int = 1,
+) -> Any:
+    """
+    Dual-purpose normalization function:
+    1. If called with a single argument (raw finding dict/model):
+       Converts/normalizes the input into a canonical ValidationFinding instance (Person 3 contract).
+    2. If called with 'category' (Person 4 Phase 9 dashboard contract):
+       Converts the input ValidationFinding into a NormalizedFinding for the reviewer UI.
+    """
+    if category is not None:
+        return NormalizedFinding(
+            finding_id=f"{prefix}_{index:03d}_{getattr(item, 'rule_id', 'UNKNOWN')}",
+            category=category,
+            rule_id=getattr(item, "rule_id", "UNKNOWN"),
+            rule_name=getattr(item, "rule_name", "Unknown Rule"),
+            outcome=getattr(item, "outcome", "INCONCLUSIVE"),
+            severity=getattr(item, "severity", "MEDIUM"),
+            explanation=getattr(item, "explanation", ""),
+            affected_document_ids=getattr(item, "affected_document_ids", []),
+            affected_fields=getattr(item, "affected_fields", []),
+            evidence_values=getattr(item, "evidence_values", {}),
+            requires_human_review=getattr(item, "requires_human_review", False),
+            timestamp_utc=getattr(item, "timestamp_utc", datetime.now(timezone.utc).isoformat()),
+        )
+    return _normalize_validation_finding(item)
+
+
+class FindingsNormalizer:
+    """
+    Orchestrates finding normalization and computes the high-level ReviewerSummary.
+    """
+
+    @classmethod
+    def aggregate_and_normalize(
+        cls,
+        compliance_findings: Optional[List[ValidationFinding]] = None,
+        authenticity_findings: Optional[List[ValidationFinding]] = None,
+        privacy_findings: Optional[List[ValidationFinding]] = None,
+        consistency_findings: Optional[List[ValidationFinding]] = None,
+    ) -> List[NormalizedFinding]:
+        """Merge and standardize findings from all pipeline phases."""
+        normalized: List[NormalizedFinding] = []
+        counter = 1
+
+        for f in (compliance_findings or []):
+            normalized.append(normalize_finding(f, category="COMPLIANCE", prefix="COMP", index=counter))
+            counter += 1
+
+        for f in (authenticity_findings or []):
+            normalized.append(normalize_finding(f, category="AUTHENTICITY", prefix="AUTH", index=counter))
+            counter += 1
+
+        for f in (privacy_findings or []):
+            normalized.append(normalize_finding(f, category="PRIVACY", prefix="PRIV", index=counter))
+            counter += 1
+
+        for f in (consistency_findings or []):
+            normalized.append(normalize_finding(f, category="CONSISTENCY", prefix="CONS", index=counter))
+            counter += 1
+
+        return normalized
+
+    @classmethod
+    def compute_reviewer_summary(
+        cls,
+        normalized_findings: List[NormalizedFinding],
+        validation_report: Optional[DocumentValidationReport] = None,
+    ) -> ReviewerSummary:
+        """Calculate executive statistics and status for the reviewer dashboard."""
+        summary = ReviewerSummary()
+        summary.total_rules_evaluated = len(normalized_findings)
+
+        has_critical_or_fail = False
+        has_inconclusive = False
+        requires_review = False
+
+        for f in normalized_findings:
+            if f.outcome == "PASS":
+                summary.passed_rules += 1
+            elif f.outcome == "FAIL":
+                summary.failed_rules += 1
+                has_critical_or_fail = True
+            elif f.outcome == "INCONCLUSIVE":
+                summary.inconclusive_rules += 1
+                has_inconclusive = True
+
+            if f.severity == "CRITICAL":
+                summary.critical_findings += 1
+                has_critical_or_fail = True
+            elif f.severity == "HIGH":
+                summary.high_findings += 1
+            elif f.severity == "MEDIUM":
+                summary.medium_findings += 1
+            elif f.severity == "LOW":
+                summary.low_findings += 1
+            elif f.severity == "INFO":
+                summary.info_findings += 1
+
+            if f.category == "AUTHENTICITY" and f.outcome != "PASS":
+                summary.authenticity_signals_count += 1
+            if f.category == "PRIVACY" and f.rule_id == "PRIV_PII_REDACTED":
+                summary.privacy_redactions_count += 1
+
+            if f.requires_human_review:
+                requires_review = True
+
+        if validation_report and validation_report.requires_human_review:
+            requires_review = True
+
+        # Determine Overall Status
+        if has_critical_or_fail and summary.critical_findings > 0:
+            summary.overall_status = "ACTION_REQUIRED"
+        elif requires_review or has_inconclusive:
+            summary.overall_status = "NEEDS_HUMAN_REVIEW"
+        elif summary.failed_rules > 0:
+            summary.overall_status = "ACTION_REQUIRED"
+        else:
+            summary.overall_status = "VERIFIED"
+
+        summary.requires_human_review = requires_review
+        return summary
