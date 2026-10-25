@@ -751,3 +751,196 @@ def test_duplicate_hash_semantics_does_not_imply_fraud():
     assert "does not imply fraud or regulatory non-compliance" in finding.explanation
     assert finding.requires_human_review is False
 
+
+# ==============================================================================
+# 6. Phase 7 Surgical Fixes Regression Tests
+# ==============================================================================
+
+def test_malformed_dictionary_payload_schema_failure_report():
+    """Malformed dictionary returns a schema-conformance FAIL finding instead of raising an unhandled exception."""
+    engine = ValidationEngine()
+    malformed_payload = {
+        "document_id": "MALFORMED_DOC_001",
+        "sha256": "not-a-valid-sha256-hex",
+        "document_type": "aicte_eoa",
+        "fields": {
+            "academic_year": {
+                "raw_value": "2026-2027",
+                "confidence": 99.9,  # Invalid: confidence must be <= 1.0
+            }
+        },
+    }
+    report = engine.validate_document(malformed_payload)
+
+    assert report.document_id == "MALFORMED_DOC_001"
+    assert report.overall_outcome == "FAIL"
+    assert report.requires_human_review is True
+    assert report.summary["fail"] == 1
+    assert report.summary["critical"] == 1
+    finding = report.findings[0]
+    assert finding.rule_id == "RULE_SCHEMA_CONFORMANCE"
+    assert finding.outcome == "FAIL"
+    assert finding.severity == "CRITICAL"
+    assert finding.requires_human_review is True
+    # Verify raw values are not leaked into explanation
+    assert "not-a-valid-sha256-hex" not in finding.explanation
+    assert "contract schema validation" in finding.explanation.lower()
+
+
+def test_cross_institution_id_three_documents_identifies_conflicting_records():
+    """Three-document ID mismatch explanation identifies the actual conflicting records and IDs."""
+    meta = ProcessingMetadata(total_pages=1, processed_pages=1, extraction_path="digital")
+    doc1 = ExtractionResult(
+        document_id="DOC_001",
+        source_file="doc1.pdf",
+        document_type="aicte_eoa",
+        processing_metadata=meta,
+        fields={"permanent_institute_id": FieldEvidence(raw_value="1-4775731", normalized_value="1-4775731")},
+    )
+    doc2 = ExtractionResult(
+        document_id="DOC_002",
+        source_file="doc2.pdf",
+        document_type="aicte_mandatory_disclosure",
+        processing_metadata=meta,
+        fields={"permanent_institute_id": FieldEvidence(raw_value="1-4775731", normalized_value="1-4775731")},
+    )
+    doc3 = ExtractionResult(
+        document_id="DOC_003",
+        source_file="doc3.pdf",
+        document_type="aicte_mandatory_disclosure",
+        processing_metadata=meta,
+        fields={"permanent_institute_id": FieldEvidence(raw_value="1-9999999", normalized_value="1-9999999")},
+    )
+    finding = check_cross_institution_id([doc1, doc2, doc3])
+    assert finding is not None
+    assert finding.outcome == "FAIL"
+    assert finding.severity == "CRITICAL"
+    assert finding.requires_human_review is True
+    # The explanation must cite the two conflicting IDs, not the same ID twice
+    assert "1-4775731" in finding.explanation
+    assert "1-9999999" in finding.explanation
+    assert "Permanent Institute ID mismatch between" in finding.explanation
+
+
+def test_cross_intake_multi_shift_distinct_aggregation_passes():
+    """Two distinct CSE shifts with intake 60 each correctly aggregate and support a disclosure claiming 120."""
+    meta = ProcessingMetadata(total_pages=1, processed_pages=1, extraction_path="digital")
+    doc_eoa = ExtractionResult(
+        document_id="EOA_MULTI_SHIFT",
+        source_file="eoa.pdf",
+        document_type="aicte_eoa",
+        processing_metadata=meta,
+        table_data=[
+            TableData(
+                table_name="approved_courses_and_intake",
+                page_number=1,
+                rows=[
+                    {"course": "Computer Science & Engineering", "shift": "1st Shift", "approved_intake": 60},
+                    {"course": "Computer Science & Engineering", "shift": "2nd Shift", "approved_intake": 60},
+                ],
+            )
+        ],
+    )
+    doc_disc = ExtractionResult(
+        document_id="DISC_CLAIM",
+        source_file="disc.pdf",
+        document_type="aicte_mandatory_disclosure",
+        processing_metadata=meta,
+        table_data=[
+            TableData(
+                table_name="programmes_and_intake",
+                page_number=1,
+                rows=[{"course": "CSE", "claimed_intake": 120}],
+            )
+        ],
+    )
+    finding = check_cross_intake_mismatch([doc_eoa, doc_disc])
+    assert finding is not None
+    assert finding.outcome == "PASS"
+    assert finding.severity == "INFO"
+    assert finding.evidence_values["approved_quotas"]["COMPUTER SCIENCE AND ENGINEERING"] == 120
+    assert finding.evidence_values["claimed_quotas"]["COMPUTER SCIENCE AND ENGINEERING"] == 120
+
+
+def test_cross_intake_duplicate_or_ambiguous_rows_do_not_inflate():
+    """Duplicate or ambiguous programme rows do not inflate approved capacity and produce INCONCLUSIVE."""
+    meta = ProcessingMetadata(total_pages=1, processed_pages=1, extraction_path="digital")
+    # Duplicate rows without distinct shift differentiation
+    doc_eoa = ExtractionResult(
+        document_id="EOA_DUP_ROWS",
+        source_file="eoa.pdf",
+        document_type="aicte_eoa",
+        processing_metadata=meta,
+        table_data=[
+            TableData(
+                table_name="approved_courses_and_intake",
+                page_number=1,
+                rows=[
+                    {"course": "COMPUTER SCIENCE AND ENGINEERING", "approved_intake": 60},
+                    {"course": "COMPUTER SCIENCE AND ENGINEERING", "approved_intake": 60},
+                ],
+            )
+        ],
+    )
+    doc_disc = ExtractionResult(
+        document_id="DISC_CLAIM",
+        source_file="disc.pdf",
+        document_type="aicte_mandatory_disclosure",
+        processing_metadata=meta,
+        table_data=[
+            TableData(
+                table_name="programmes_and_intake",
+                page_number=1,
+                rows=[{"course": "CSE", "claimed_intake": 120}],
+            )
+        ],
+    )
+    finding = check_cross_intake_mismatch([doc_eoa, doc_disc])
+    assert finding is not None
+    assert finding.outcome == "INCONCLUSIVE"
+    assert finding.requires_human_review is True
+    assert "cannot aggregate capacity reliably without double-counting" in finding.explanation
+
+
+def test_cross_institution_name_acronym_variation_passes():
+    """Full institution name versus established acronym (e.g. KGEC) aligns via verified acronym equivalence."""
+    meta = ProcessingMetadata(total_pages=1, processed_pages=1, extraction_path="digital")
+    doc_eoa = ExtractionResult(
+        document_id="DOC_EOA",
+        source_file="eoa.pdf",
+        document_type="aicte_eoa",
+        processing_metadata=meta,
+        fields={"institution_name": FieldEvidence(raw_value="Kalyani Government Engineering College", normalized_value="Kalyani Government Engineering College")},
+    )
+    doc_disc = ExtractionResult(
+        document_id="DOC_DISC",
+        source_file="disc.pdf",
+        document_type="aicte_mandatory_disclosure",
+        processing_metadata=meta,
+        fields={"institution_name": FieldEvidence(raw_value="KGEC", normalized_value="KGEC")},
+    )
+    finding = check_cross_institution_name([doc_eoa, doc_disc])
+    assert finding is not None
+    assert finding.outcome == "PASS"
+    assert finding.severity == "INFO"
+    assert "acronym equivalence" in finding.explanation.lower()
+
+
+def test_rule_date_range_equal_dates_passes():
+    """Equal validity start and end dates (e.g. single-day validity event) passes chronologically."""
+    meta = ProcessingMetadata(total_pages=1, processed_pages=1, extraction_path="digital")
+    doc = ExtractionResult(
+        document_id="DOC_EQUAL_DATES",
+        source_file="cert.pdf",
+        document_type="naac_certificate",
+        processing_metadata=meta,
+        fields={
+            "valid_from": FieldEvidence(raw_value="2026-05-01", normalized_value="2026-05-01"),
+            "valid_to": FieldEvidence(raw_value="2026-05-01", normalized_value="2026-05-01"),
+        },
+    )
+    finding = rule_date_range_valid(doc)
+    assert finding is not None
+    assert finding.outcome == "PASS"
+    assert finding.severity == "INFO"
+

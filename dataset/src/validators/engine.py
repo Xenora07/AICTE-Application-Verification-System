@@ -12,6 +12,7 @@ Key Principles:
 """
 
 from typing import Any, Dict, List, Optional, Tuple, Union
+from pydantic import ValidationError
 from src.schemas.common import FieldEvidence, TableData
 from src.schemas.extraction_result import ExtractionResult, ProcessingMetadata
 from src.validators.cross_document import (
@@ -95,7 +96,37 @@ class ValidationEngine:
         Execute all applicable deterministic single-document validation rules.
         Returns a DocumentValidationReport.
         """
-        doc = self._coerce_to_extraction_result(doc_input)
+        try:
+            doc = self._coerce_to_extraction_result(doc_input)
+        except ValidationError as exc:
+            doc_id = "UNKNOWN_DOCUMENT"
+            doc_type = "generic"
+            if isinstance(doc_input, dict):
+                doc_id = str(doc_input.get("document_id") or "UNKNOWN_DOCUMENT")
+                doc_type = str(doc_input.get("document_type") or "generic")
+
+            # Extract affected schema field paths without exposing raw sensitive document contents
+            err_locations = [
+                " -> ".join(str(loc) for loc in err.get("loc", []))
+                for err in exc.errors()
+            ]
+            fields_summary = ", ".join(err_locations[:5]) if err_locations else "payload structure"
+            finding = ValidationFinding(
+                rule_id="RULE_SCHEMA_CONFORMANCE",
+                rule_name="Payload Schema Conformance",
+                outcome="FAIL",
+                severity="CRITICAL",
+                explanation=f"Input document payload failed contract schema validation at: {fields_summary}",
+                affected_document_ids=[doc_id],
+                affected_fields=err_locations,
+                evidence_values={"validation_error_count": len(exc.errors())},
+                requires_human_review=True,
+            )
+            return DocumentValidationReport.create(
+                document_id=doc_id,
+                document_type=doc_type,
+                findings=[finding],
+            )
         reg_hashes = registered_hashes or self.registered_hashes
 
         # Check if input dictionary includes previous_matching_doc_id in submission_metadata
@@ -164,7 +195,29 @@ class ValidationEngine:
         Execute deterministic cross-document consistency checks between 2 or more documents.
         Checks institution IDs, names, intake quotas, and duplicate hashes.
         """
-        docs = [self._coerce_to_extraction_result(d) for d in docs_input]
+        try:
+            docs = [self._coerce_to_extraction_result(d) for d in docs_input]
+        except ValidationError as exc:
+            err_locations = [
+                " -> ".join(str(loc) for loc in err.get("loc", []))
+                for err in exc.errors()
+            ]
+            fields_summary = ", ".join(err_locations[:5]) if err_locations else "payload structure"
+            finding = ValidationFinding(
+                rule_id="RULE_SCHEMA_CONFORMANCE",
+                rule_name="Payload Schema Conformance",
+                outcome="FAIL",
+                severity="CRITICAL",
+                explanation=f"A document in bundle failed contract schema validation at: {fields_summary}",
+                affected_document_ids=[],
+                affected_fields=err_locations,
+                evidence_values={"validation_error_count": len(exc.errors())},
+                requires_human_review=True,
+            )
+            return CrossDocumentConsistencyReport.create(
+                compared_document_ids=[],
+                findings=[finding],
+            )
         reg_hashes = registered_hashes or self.registered_hashes
         compared_ids = [d.document_id for d in docs]
 
