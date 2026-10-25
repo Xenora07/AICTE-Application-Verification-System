@@ -1,0 +1,49 @@
+{
+  "document_id": "SYNTH_DOC_003",
+  "source_file": "synthetic_fixtures/aicte_sample_invalid_id.pdf",
+  "sha256": "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "aicte_eoa",
+  "classification_confidence": null,
+  "processing_status": "SUCCESS",
+  "processing_metadata": {
+    "total_pages": 1,
+    "processed_pages": 1,
+    "extraction_path": "digital",
+    "ocr_pages": [],
+    "digital_pages": [1]
+  },
+  "fields": {
+    "institution_name": {
+      "raw_value": "APEX INSTITUTE OF TECHNOLOGY AND SCIENCE",
+      "normalized_value": "Apex Institute of Technology and Science",
+      "page_number": 1,
+      "bounding_box": [72.0, 140.0, 390.0, 155.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false
+    },
+    "application_id": {
+      "raw_value": "INVALID-APP-ID-XYZ",
+      "normalized_value": "INVALID-APP-ID-XYZ",
+      "page_number": 1,
+      "bounding_box": [120.0, 72.0, 240.0, 84.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": true
+    },
+    "permanent_institute_id": {
+      "raw_value": "1-4775731",
+      "normalized_value": "1-4775731",
+      "page_number": 1,
+      "bounding_box": [150.0, 160.0, 240.0, 172.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false
+    }
+  },
+  "table_data": [],
+  "warnings": [
+    "Application ID 'INVALID-APP-ID-XYZ' violates pattern '^1-[0-9]{11}$'"
+  ],
+  "errors": []
+}

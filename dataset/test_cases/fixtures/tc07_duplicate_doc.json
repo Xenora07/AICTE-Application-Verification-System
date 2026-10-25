@@ -1,0 +1,14 @@
+{
+  "document_id": "SYNTH_DOC_007",
+  "source_file": "synthetic_fixtures/duplicate_aicte_eoa.pdf",
+  "sha256": "cd44e07be8edccc5424eaf757614309a42392324976304dfb840de393a5a0767",
+  "document_type": "aicte_eoa",
+  "submission_metadata": {
+    "applicant_id": "APP_SESSION_2026_987",
+    "previous_matching_doc_id": "DOC_REAL_003"
+  },
+  "warnings": [
+    "Duplicate submission detected: SHA-256 matches existing document DOC_REAL_003"
+  ],
+  "errors": []
+}

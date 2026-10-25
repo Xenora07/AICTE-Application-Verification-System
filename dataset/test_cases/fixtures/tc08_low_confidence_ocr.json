@@ -1,0 +1,41 @@
+{
+  "document_id": "SYNTH_DOC_008",
+  "source_file": "synthetic_fixtures/naac_low_confidence_scan.pdf",
+  "sha256": "8123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "naac_certificate",
+  "classification_confidence": null,
+  "processing_status": "SUCCESS_WITH_UNCERTAINTY",
+  "processing_metadata": {
+    "total_pages": 1,
+    "processed_pages": 1,
+    "extraction_path": "ocr",
+    "ocr_pages": [1],
+    "digital_pages": [],
+    "ocr_backend": "synthetic_test_engine"
+  },
+  "fields": {
+    "institution_name": {
+      "raw_value": "VIVEKANANDA POLYTECHNIC",
+      "normalized_value": "Vivekananda Polytechnic",
+      "page_number": 1,
+      "bounding_box": [100.0, 180.0, 420.0, 205.0],
+      "confidence": 0.78,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    },
+    "cgpa": {
+      "raw_value": "3.O8",
+      "normalized_value": "3.08",
+      "page_number": 1,
+      "bounding_box": [270.0, 350.0, 330.0, 368.0],
+      "confidence": 0.48,
+      "extraction_method": "ocr",
+      "is_uncertain": true,
+      "uncertainty_reason": "Synthetic test-only value simulating OCR engine output for threshold evaluation"
+    }
+  },
+  "warnings": [
+    "CGPA field extracted with low confidence (0.48 < 0.65 threshold) with ambiguous character substitution ('O' for '0')"
+  ],
+  "errors": []
+}

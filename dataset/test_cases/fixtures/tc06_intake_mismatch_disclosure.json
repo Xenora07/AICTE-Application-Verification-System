@@ -1,0 +1,21 @@
+{
+  "document_id": "SYNTH_DOC_006B",
+  "source_file": "synthetic_fixtures/cross_intake_disclosure.pdf",
+  "sha256": "6223456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "aicte_mandatory_disclosure",
+  "table_data": [
+    {
+      "table_name": "programmes_and_intake",
+      "page_number": 5,
+      "rows": [
+        {
+          "programme": "ENGINEERING AND TECHNOLOGY",
+          "course": "COMPUTER SCIENCE AND ENGINEERING",
+          "claimed_intake": 180
+        }
+      ]
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}

@@ -1,0 +1,90 @@
+{
+  "document_id": "SYNTH_DOC_CONTRACT_EXAMPLE",
+  "source_file": "synthetic_fixtures/example_regulatory_contract.pdf",
+  "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "document_type": "aicte_eoa",
+  "classification_confidence": null,
+  "processing_status": "SUCCESS_WITH_WARNINGS",
+  "processing_metadata": {
+    "total_pages": 3,
+    "processed_pages": 3,
+    "page_range": "1-3",
+    "extraction_path": "hybrid",
+    "digital_pages": [1, 2],
+    "ocr_pages": [3],
+    "timestamp_utc": "2026-10-24T18:00:00Z",
+    "ocr_backend": "synthetic_test_engine"
+  },
+  "fields": {
+    "institution_name": {
+      "raw_value": "GOVERNMENT ENGINEERING COLLEGE EXAMPLE",
+      "normalized_value": "Government Engineering College Example",
+      "page_number": 1,
+      "bounding_box": [72.0, 140.0, 420.0, 155.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false,
+      "uncertainty_reason": null
+    },
+    "application_id": {
+      "raw_value": "1-46227285868",
+      "normalized_value": "1-46227285868",
+      "page_number": 1,
+      "bounding_box": [120.0, 72.0, 240.0, 84.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false,
+      "uncertainty_reason": null
+    },
+    "principal_signature_name": {
+      "raw_value": "Dr. R. K. Sharma",
+      "normalized_value": "Dr. R. K. Sharma",
+      "page_number": 3,
+      "bounding_box": [320.0, 680.0, 480.0, 705.0],
+      "confidence": 0.88,
+      "extraction_method": "ocr",
+      "is_uncertain": false,
+      "uncertainty_reason": null
+    },
+    "council_seal_text": {
+      "raw_value": "ALL INDIA COUNC... TECH... ED...",
+      "normalized_value": null,
+      "page_number": 3,
+      "bounding_box": [100.0, 650.0, 220.0, 720.0],
+      "confidence": 0.42,
+      "extraction_method": "ocr",
+      "is_uncertain": true,
+      "uncertainty_reason": "Low OCR recognition score (0.42 < 0.65 threshold) on blurred circular stamp"
+    }
+  },
+  "table_data": [
+    {
+      "table_name": "approved_courses_and_intake",
+      "page_number": 2,
+      "headers": [
+        "Programme",
+        "Course",
+        "Level",
+        "Approved Intake"
+      ],
+      "rows": [
+        {
+          "programme": "ENGINEERING AND TECHNOLOGY",
+          "course": "COMPUTER SCIENCE AND ENGINEERING",
+          "level": "UG",
+          "approved_intake": 120
+        },
+        {
+          "programme": "ENGINEERING AND TECHNOLOGY",
+          "course": "ELECTRICAL ENGINEERING",
+          "level": "UG",
+          "approved_intake": 60
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Council seal text recognized with low confidence (0.42) on page 3"
+  ],
+  "errors": []
+}
