@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
@@ -20,6 +19,10 @@
     },
     {
       "source": "/docs",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/redoc",
       "destination": "/api/index.py"
     },
     {
