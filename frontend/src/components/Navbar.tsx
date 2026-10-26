@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Database, Upload, Sun, Moon, User, Settings, Activity, ChevronDown, XCircle } from 'lucide-react';
+import { Database, Upload, Sun, Moon, User, Settings, Activity, ChevronDown, XCircle, LogOut, LogIn } from 'lucide-react';
 import { SystemHealth } from '../types/api';
 
 interface NavbarProps {
@@ -12,6 +12,9 @@ interface NavbarProps {
   draftCount?: number;
   onClearSessionDrafts?: () => void;
   onSelectDestination?: (dest: any) => void;
+  user?: { id: string; name: string; email: string; role: string } | null;
+  onSignOut?: () => void;
+  onOpenAuth?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -24,6 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   draftCount = 0,
   onClearSessionDrafts,
   onSelectDestination,
+  user,
+  onSignOut,
+  onOpenAuth,
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -67,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           color: 'var(--text-secondary)',
           marginTop: '2px',
         }}>
-          Regulatory Compliance • Document Authenticity • Consistency Gateway
+          Check Rules • Verify Documents • Find Mismatches
         </p>
       </div>
 
@@ -137,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {theme === 'dark' ? <Sun size={15} style={{ color: '#f59e0b' }} /> : <Moon size={15} />}
         </button>
 
-        {/* Guest Profile Dropdown in Header */}
+        {/* Guest / Auditor Profile Dropdown in Header */}
         <div style={{ position: 'relative' }} ref={profileRef}>
           <button
             type="button"
@@ -155,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               cursor: 'pointer',
               transition: 'background-color 0.15s ease',
             }}
-            title="Reviewer Profile: Guest Session (Not authenticated)"
+            title={user ? `Reviewer Profile: ${user.name} (${user.email})` : 'Guest Access • View Only'}
             aria-expanded={isProfileOpen}
             aria-haspopup="true"
           >
@@ -163,15 +169,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               width: '22px',
               height: '22px',
               borderRadius: '50%',
-              backgroundColor: 'var(--border-color)',
+              backgroundColor: user ? 'var(--color-brand)' : 'var(--border-color)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--text-secondary)',
+              color: user ? '#ffffff' : 'var(--text-secondary)',
+              fontSize: '11px',
+              fontWeight: '700',
             }}>
-              <User size={13} />
+              {user ? user.name.charAt(0).toUpperCase() : <User size={13} />}
             </div>
-            <span style={{ fontSize: '11.5px', fontWeight: '600' }}>Guest</span>
+            <span style={{ fontSize: '11.5px', fontWeight: '600' }}>
+              {user ? user.name.split(' ')[0] : 'Guest'}
+            </span>
             <ChevronDown
               size={12}
               style={{
@@ -206,27 +216,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                   width: '34px',
                   height: '34px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--bg-hover)',
+                  backgroundColor: user ? 'var(--color-brand)' : 'var(--bg-hover)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-secondary)',
+                  color: user ? '#ffffff' : 'var(--text-secondary)',
+                  fontWeight: '700',
+                  fontSize: '14px',
                   flexShrink: 0,
                 }}>
-                  <User size={17} />
+                  {user ? user.name.charAt(0).toUpperCase() : <User size={17} />}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      Guest Session
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user ? user.name : 'Guest Access'}
                     </span>
-                    <span className="badge badge-pill" style={{ fontSize: '9px', padding: '1px 5px', backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)' }}>
-                      Unauthenticated
+                    <span className="badge badge-pill" style={{
+                      fontSize: '9px',
+                      padding: '1px 5px',
+                      backgroundColor: user ? '#dcfce7' : 'var(--bg-hover)',
+                      color: user ? '#15803d' : 'var(--text-muted)',
+                    }}>
+                      {user ? 'Authenticated' : 'Unauthenticated'}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Regulatory Auditor Mode
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user ? user.email : 'View Only'}
                   </div>
                 </div>
               </div>
@@ -245,7 +262,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Role:</span>
-                  <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Auditor (Guest)</span>
+                  <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                    {user ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)} (Official)` : 'Auditor (Guest)'}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Adjudications:</span>
@@ -255,7 +274,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Persistence:</span>
-                  <span style={{ color: '#b45309' }}>In-Memory Session</span>
+                  <span style={{ color: user ? '#15803d' : '#b45309' }}>
+                    {user ? 'JWT Verified' : 'In-Memory Session'}
+                  </span>
                 </div>
               </div>
 
@@ -312,10 +333,49 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span>Clear Drafts ({draftCount})</span>
                   </button>
                 )}
+
+                {user && onSignOut && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      onSignOut();
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      fontSize: '11.5px',
+                      padding: '6px 10px',
+                      color: '#b91c1c',
+                      borderColor: 'var(--border-subtle)',
+                    }}
+                  >
+                    <LogOut size={13} />
+                    <span>Sign Out</span>
+                  </button>
+                )}
+
+                {!user && onOpenAuth && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px', padding: '6px 10px' }}
+                  >
+                    <LogIn size={13} />
+                    <span>Sign In</span>
+                  </button>
+                )}
               </div>
 
               <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3', borderTop: '1px solid var(--border-subtle)', paddingTop: '6px' }}>
-                * Decisions are stored in session memory and not sent to a remote database.
+                {user
+                  ? '* Auditor session active with cryptographic token verification.'
+                  : '* Decisions are stored in session memory and not sent to a remote database.'}
               </div>
             </div>
           )}

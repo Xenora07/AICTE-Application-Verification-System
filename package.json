@@ -1,0 +1,10 @@
+{
+  "name": "aicte-application-verification-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-Powered Application Validation, Document Authentication, and Regulatory Compliance Verification (SIH26261)",
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "test:frontend": "npm --prefix frontend test"
+  }
+}

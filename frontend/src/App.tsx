@@ -9,6 +9,10 @@ import { ValidationFindingsList } from './components/ValidationFindingsList';
 import { CrossDocumentMatrix } from './components/CrossDocumentMatrix';
 import { SyntheticTestRunner } from './components/SyntheticTestRunner';
 import { HumanReviewDrawer } from './components/HumanReviewDrawer';
+import { WelcomePage } from './components/WelcomePage';
+import { AuthPage } from './components/auth/AuthPage';
+import { SystemExplainerPage } from './components/SystemExplainerPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './services/api';
 import {
   AdjudicationRecord,
@@ -20,10 +24,63 @@ import {
 } from './types/api';
 import { AlertCircle, CheckCircle2, FileText, ShieldAlert, History } from 'lucide-react';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const { user, isAuthenticated, logout } = useAuth();
 
-  // Navigation destinations
+  // Top-level View Routing ('welcome' | 'auth' | 'app' | 'explainer')
+  const [currentView, setCurrentView] = useState<'welcome' | 'auth' | 'app' | 'explainer'>(() => {
+    if (queryParams?.get('view') === 'app' || queryParams?.get('tab')) return 'app';
+    if (queryParams?.get('view') === 'auth') return 'auth';
+    if (queryParams?.get('view') === 'explainer' || queryParams?.get('view') === 'how-it-works') return 'explainer';
+    try {
+      const storedToken = localStorage.getItem('aicte_auth_token') || sessionStorage.getItem('aicte_auth_token');
+      return storedToken ? 'app' : 'welcome';
+    } catch {
+      return 'welcome';
+    }
+  });
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('view');
+      if (v === 'explainer' || v === 'how-it-works') {
+        setCurrentView('explainer');
+      } else if (v === 'auth') {
+        setCurrentView('auth');
+      } else if (v === 'app' || params.get('tab')) {
+        setCurrentView('app');
+      } else {
+        setCurrentView('welcome');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateToView = (view: 'welcome' | 'auth' | 'app' | 'explainer', replaceState = false) => {
+    setCurrentView(view);
+    try {
+      const url = new URL(window.location.href);
+      if (view === 'welcome') {
+        url.searchParams.delete('view');
+      } else {
+        url.searchParams.set('view', view);
+      }
+      if (replaceState) {
+        window.history.replaceState({}, '', url.toString());
+      } else {
+        window.history.pushState({}, '', url.toString());
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Navigation destinations inside verification workspace
   const [activeDestination, setActiveDestination] = useState<MainNavDestination>(
     () => (queryParams?.get('tab') as MainNavDestination) || 'single'
   );
@@ -245,6 +302,57 @@ export const App: React.FC = () => {
     }
   };
 
+  // Render Welcome Page view
+  if (currentView === 'welcome') {
+    return (
+      <WelcomePage
+        onBeginVerification={() => {
+          if (isAuthenticated) {
+            navigateToView('app');
+          } else {
+            setAuthMode('login');
+            navigateToView('auth');
+          }
+        }}
+        onOpenAuth={(mode) => {
+          setAuthMode(mode || 'login');
+          navigateToView('auth');
+        }}
+        onOpenExplainer={() => {
+          navigateToView('explainer');
+        }}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        isAuthenticated={isAuthenticated}
+        userName={user?.name}
+      />
+    );
+  }
+
+  // Render Explainer Document view ("How It Works")
+  if (currentView === 'explainer') {
+    return (
+      <SystemExplainerPage
+        onBackToHome={() => navigateToView('welcome')}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
+  // Render Authentication view
+  if (currentView === 'auth') {
+    return (
+      <AuthPage
+        initialMode={authMode}
+        onAuthSuccess={() => navigateToView('app')}
+        onBackToWelcome={() => navigateToView('welcome')}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
   return (
     <div className="app-layout">
       {/* Concept 1: LEDGER Compact Left Navigation Sidebar */}
@@ -269,6 +377,15 @@ export const App: React.FC = () => {
           draftCount={Object.keys(adjudications).length}
           onClearSessionDrafts={handleClearSessionDrafts}
           onSelectDestination={setActiveDestination}
+          user={user}
+          onSignOut={async () => {
+            await logout();
+            setCurrentView('welcome');
+          }}
+          onOpenAuth={() => {
+            setAuthMode('login');
+            setCurrentView('auth');
+          }}
         />
 
         <main className="content-container">
@@ -390,7 +507,7 @@ export const App: React.FC = () => {
                       onClick={() => setActiveSubTab('cross')}
                       className={`ledger-tab ${activeSubTab === 'cross' ? 'active' : ''}`}
                     >
-                      Cross-Document Checks
+                      Compare Documents
                     </button>
                     <button
                       role="tab"
@@ -610,14 +727,14 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* Destination 5: Demo & Diagnostics */}
+          {/* Destination 5: Demo & System Checks */}
           {activeDestination === 'diagnostics' && (
             <div className="surface-card" style={{ padding: '24px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>
-                System Readiness & Pipeline Diagnostics
+                System Readiness & System Checks
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Real-time status of underlying OCR engines, digital PDF extractors, and in-memory cryptographic hash caches.
+                Real-time status of OCR engines, PDF extractors, and verification checks.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
@@ -706,7 +823,7 @@ export const App: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    value="Guest Reviewer (Unauthenticated Session - No Authentication Configured)"
+                    value="Guest Access (View Only - No Authentication Required)"
                     readOnly
                     style={{
                       width: '100%',
@@ -755,6 +872,14 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

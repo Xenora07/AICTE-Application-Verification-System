@@ -76,7 +76,7 @@ class ProfileMenuManager {
 
   getProfileInfo() {
     return {
-      name: 'Guest Session',
+      name: 'Guest Access',
       role: 'Auditor (Guest)',
       isAuthenticated: false,
       sessionType: 'ephemeral-local',
@@ -141,7 +141,7 @@ describe('Theme Switcher & Guest Profile Menu Tests', () => {
     const profile = new ProfileMenuManager();
     const info = profile.getProfileInfo();
 
-    assert.equal(info.name, 'Guest Session');
+    assert.equal(info.name, 'Guest Access');
     assert.equal(info.role, 'Auditor (Guest)');
     assert.equal(info.isAuthenticated, false);
     assert.equal(info.persistence, 'In-Memory Only');

@@ -104,10 +104,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
       <div style={{ marginBottom: '14px' }}>
         <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '3px' }}>
-          Upload Regulatory Document
+          Upload a Document
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Supports AICTE Extension of Approval (EoA), Mandatory Disclosure, NAAC, and NBA (.pdf)
+          Upload an AICTE approval, disclosure, NAAC, or NBA PDF
         </p>
       </div>
 
@@ -161,16 +161,16 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 {selectedFile.name}
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                {formatFileSize(selectedFile.size)} — Ready for regulatory verification
+                {formatFileSize(selectedFile.size)} — Ready to verify
               </div>
             </div>
           ) : (
             <div>
               <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                Drag and drop institutional approval letter or disclosure PDF
+                Drag your PDF here or click to browse
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                or click to select file from system (Max 50MB • PDF format)
+                Or choose a file from your computer (PDF, up to 50 MB)
               </div>
             </div>
           )}
@@ -218,7 +218,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '14px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Custom Document ID (Optional)
+              Document ID (Optional)
             </label>
             <input
               type="text"
@@ -244,7 +244,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-              Document Type Hint
+              Document Type
             </label>
             <select
               value={documentType}
@@ -260,7 +260,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <option value="">Auto-Detect from Content</option>
+              <option value="">Detect Automatically</option>
               <option value="aicte_eoa">AICTE Extension of Approval (EoA)</option>
               <option value="aicte_mandatory_disclosure">AICTE Mandatory Disclosure</option>
               <option value="naac_certificate">NAAC Accreditation Certificate</option>
@@ -276,10 +276,10 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
                 onChange={(e) => setEnablePrivacyMasking(e.target.checked)}
                 style={{ width: '15px', height: '15px', accentColor: 'var(--color-brand)' }}
               />
-              <span style={{ fontWeight: '500' }}>Enable Privacy Gateway</span>
+              <span style={{ fontWeight: '500' }}>Protect Personal Information</span>
             </label>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '23px', marginTop: '1px' }}>
-              Automated PII masking (phone, email, identity)
+              Automatically hide phone numbers, emails, and other personal details
             </span>
           </div>
         </div>
@@ -306,7 +306,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         {/* Action Buttons & Guidance */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
           <div style={{ fontSize: '11.5px', color: selectedFile ? 'var(--color-pass-text)' : 'var(--text-muted)' }}>
-            {selectedFile ? '✓ Document ready to verify' : 'Select a PDF document above to enable verification'}
+            {selectedFile ? '✓ Document ready to verify' : 'Upload a PDF to start verification'}
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -324,9 +324,9 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               type="submit"
               className="btn btn-brand"
               disabled={!canSubmit}
-              style={{ minWidth: '190px' }}
+              style={{ minWidth: '160px' }}
             >
-              {isLoading ? 'Verifying Pipeline...' : 'Start Document Verification'}
+              {isLoading ? 'Verifying...' : 'Verify Document'}
             </button>
           </div>
         </div>

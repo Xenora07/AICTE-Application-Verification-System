@@ -11,11 +11,13 @@ import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import pymupdf
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
+
+from backend.security.auth import get_current_user
 
 from backend.common.constants import (
     DATASET_MANIFEST_PATH,
@@ -100,6 +102,7 @@ async def upload_and_process_document(
     document_type: Optional[str] = Form(None, description="Optional regulatory document type hint"),
     enable_privacy_masking: bool = Form(True, description="Whether to mask PII in response"),
     ocr_threshold: float = Form(DEFAULT_OCR_THRESHOLD, description="OCR confidence threshold"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """
     Executes Phase 9 end-to-end processing pipeline:
@@ -262,7 +265,10 @@ async def upload_and_process_document(
     summary="Cross-Document Consistency Verification",
     response_model=CrossValidateResponse,
 )
-def cross_validate_documents(payload: Optional[Dict[str, List[str]]] = None):
+def cross_validate_documents(
+    payload: Optional[Dict[str, List[str]]] = None,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """
     Compares active session documents (e.g. AICTE EoA vs Mandatory Disclosure) to detect:
     1. Permanent Institute ID discrepancies.
@@ -333,6 +339,7 @@ def verify_dataset_sample(
     doc_id: str,
     enable_privacy_masking: bool = True,
     ocr_threshold: float = DEFAULT_OCR_THRESHOLD,
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ):
     """Executes the full verification pipeline on any document in real_documents or scanned_documents."""
     # Find document in manifest
@@ -440,7 +447,10 @@ def list_test_cases():
 
 
 @router.post("/test-cases/execute/{test_id}", summary="Execute Synthetic Test Scenario")
-def execute_test_scenario(test_id: str):
+def execute_test_scenario(
+    test_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
     """Executes an automated synthetic scenario against its JSON fixture."""
     if not TEST_MANIFEST_PATH.exists():
         raise HTTPException(status_code=404, detail="test_manifest.json not found.")

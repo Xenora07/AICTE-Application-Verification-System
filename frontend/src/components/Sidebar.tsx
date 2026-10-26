@@ -7,9 +7,9 @@ import {
   Activity,
   Settings,
   ChevronDown,
-  ShieldCheck,
   Code2,
 } from 'lucide-react';
+import aicteLogo from '../assets/aicte_logo.png';
 
 export type MainNavDestination =
   | 'single'
@@ -47,25 +47,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="app-sidebar">
       {/* Brand Header */}
       <div className="sidebar-header">
-        <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '8px',
-          background: 'radial-gradient(circle, #d97706 0%, #78350f 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#ffffff',
-          boxShadow: '0 2px 4px rgba(120, 53, 15, 0.25)',
-          flexShrink: 0,
-        }}>
-          <ShieldCheck size={18} />
-        </div>
+        <img
+          src={aicteLogo}
+          alt="AICTE Emblem"
+          style={{
+            width: '32px',
+            height: '32px',
+            objectFit: 'contain',
+            flexShrink: 0,
+            display: 'block',
+          }}
+        />
         <div className="sidebar-text">
-          <div style={{ fontSize: '15px', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          <div style={{ fontSize: '15px', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', lineHeight: '1.2' }}>
             AICTE
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.2', marginTop: '1px' }}>
             Verification System
           </div>
         </div>
@@ -73,32 +70,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation Links */}
       <nav className="sidebar-nav">
-        {/* Core Regulatory Review Workflows */}
+        {/* Core Review Workflows */}
         <button
           onClick={() => onSelectDestination('single')}
           className={`sidebar-nav-item ${activeDestination === 'single' ? 'active' : ''}`}
-          title="Document Verification"
+          title="Verify a Document"
         >
           <FileText size={17} style={{ color: activeDestination === 'single' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-          <span className="sidebar-text">Document Verification</span>
+          <span className="sidebar-text">Verify Document</span>
         </button>
 
         <button
           onClick={() => onSelectDestination('cross')}
           className={`sidebar-nav-item ${activeDestination === 'cross' ? 'active' : ''}`}
-          title="Cross-Document Checks"
+          title="Compare Documents"
         >
           <CopyCheck size={17} style={{ color: activeDestination === 'cross' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-          <span className="sidebar-text">Cross-Document Checks</span>
+          <span className="sidebar-text">Compare Documents</span>
         </button>
 
         <button
           onClick={() => onSelectDestination('dataset')}
           className={`sidebar-nav-item ${activeDestination === 'dataset' ? 'active' : ''}`}
-          title="Dataset Documents"
+          title="Sample Documents"
         >
           <Database size={17} style={{ color: activeDestination === 'dataset' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-          <span className="sidebar-text">Dataset Documents</span>
+          <span className="sidebar-text">Sample Documents</span>
           {datasetCount !== undefined && datasetCount > 0 && (
             <span style={{
               marginLeft: 'auto',
@@ -116,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="sidebar-divider" />
 
-        {/* Developer & Diagnostics Collapsible Section */}
+        {/* Developer & System Tools Collapsible Section */}
         <div>
           <button
             type="button"
@@ -133,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               justifyContent: 'space-between',
               color: isDevActive ? 'var(--color-brand)' : 'var(--text-muted)',
             }}
-            title="Toggle Developer & Diagnostics tools"
+            title="Toggle Developer & System tools"
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               <Code2 size={13} />
@@ -154,20 +151,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => onSelectDestination('test-cases')}
                 className={`sidebar-nav-item ${activeDestination === 'test-cases' ? 'active' : ''}`}
                 style={{ fontSize: '12.5px', padding: '8px 10px' }}
-                title="Synthetic Test Suite"
+                title="Test Tools"
               >
                 <FlaskConical size={16} style={{ color: activeDestination === 'test-cases' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-                <span className="sidebar-text">Synthetic Tests</span>
+                <span className="sidebar-text">Test Tools</span>
               </button>
 
               <button
                 onClick={() => onSelectDestination('diagnostics')}
                 className={`sidebar-nav-item ${activeDestination === 'diagnostics' ? 'active' : ''}`}
                 style={{ fontSize: '12.5px', padding: '8px 10px' }}
-                title="Demo & Diagnostics"
+                title="System Checks"
               >
                 <Activity size={16} style={{ color: activeDestination === 'diagnostics' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-                <span className="sidebar-text">Diagnostics</span>
+                <span className="sidebar-text">System Checks</span>
               </button>
             </div>
           )}
@@ -180,7 +177,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => onSelectDestination('settings')}
           className={`sidebar-nav-item ${activeDestination === 'settings' ? 'active' : ''}`}
           style={{ width: '100%' }}
-          title="Regulatory Verification Settings"
+          title="Settings"
         >
           <Settings size={16} style={{ color: activeDestination === 'settings' ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
           <span className="sidebar-text">Settings</span>
@@ -198,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             color: 'var(--text-muted)',
             border: '1px solid var(--border-subtle)',
           }}
-          title="Regulatory Reviewer Session: Guest Auditor"
+          title="Guest Access • View Only"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
             <span
@@ -211,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
             />
             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Guest Session</span>
+              <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Guest Access</span>
             </div>
           </div>
           {draftCount > 0 ? (
@@ -230,7 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {draftCount} {draftCount === 1 ? 'draft' : 'drafts'}
             </span>
           ) : (
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Read-only</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>View Only</span>
           )}
         </div>
       </div>

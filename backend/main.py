@@ -23,10 +23,15 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.routes import router as api_v1_router
+from backend.api.auth_routes import router as auth_router
+from backend.database.auth_db import init_auth_db
 
 
 def create_application() -> FastAPI:
     """Factory creating and configuring the primary FastAPI application instance."""
+    # Initialize authentication and user storage database
+    init_auth_db()
+
     app = FastAPI(
         title="AICTE Application Verification System",
         description=(
@@ -55,7 +60,8 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register Primary API v1 Router
+    # Register Routers
+    app.include_router(auth_router, prefix="/api/v1")
     app.include_router(api_v1_router, prefix="/api/v1", tags=["Verification Pipeline"])
 
     # Root Health Check

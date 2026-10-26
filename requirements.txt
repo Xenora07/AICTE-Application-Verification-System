@@ -8,6 +8,9 @@ python-dotenv>=1.0.0
 pydantic>=2.6.0
 pydantic-settings>=2.2.0
 
+# Authentication & Security
+pyjwt>=2.8.0
+
 # Document Processing & PDF Parsing
 pymupdf>=1.24.0
 pillow>=10.0.0

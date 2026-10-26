@@ -14,3 +14,7 @@ AICTE_Dataset.zip
 *.zip
 temp_uploads/
 *.log
+backend/data/*.db
+backend/data/*.sqlite*
+*.db
+*.sqlite3

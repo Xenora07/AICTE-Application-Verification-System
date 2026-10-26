@@ -14,11 +14,38 @@ from backend.common.constants import (
     FIXTURES_DIR,
     REAL_DOCS_DIR,
 )
+from backend.database.auth_db import get_user_by_email, init_auth_db
 
 client = TestClient(app)
 
 SAMPLE_PDF = REAL_DOCS_DIR / "KGEC_AICTE_Approval_2026-27.pdf"
 CORRUPT_BIN = FIXTURES_DIR / "tc09_malformed_unreadable.bin"
+
+
+@pytest.fixture(scope="module")
+def auth_headers():
+    """Registers or logs in a test auditor to obtain a valid Bearer token for protected routes."""
+    init_auth_db()
+    test_email = "integration.auditor@aicte.gov.in"
+    test_password = "CompliantPassword2026!"
+    user = get_user_by_email(test_email)
+    if not user:
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Integration Test Auditor",
+                "email": test_email,
+                "password": test_password,
+                "consent_acknowledged": True,
+            },
+        )
+    res = client.post(
+        "/api/v1/auth/login",
+        json={"email": test_email, "password": test_password},
+    )
+    assert res.status_code == 200, f"Failed to login test user: {res.text}"
+    token = res.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_root_health():
@@ -63,27 +90,59 @@ def test_list_synthetic_test_cases():
     assert "TC_SYNTH_010" in test_ids
 
 
-def test_upload_invalid_extension():
+# ------------------------------------------------------------------------------
+# Unauthenticated Access Tests (Negative Verification)
+# ------------------------------------------------------------------------------
+
+def test_unauthenticated_upload_rejected():
+    """Verify upload rejects unauthenticated requests with 401 Unauthorized."""
+    response = client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("test.pdf", b"%PDF-1.5 test", "application/pdf")},
+    )
+    assert response.status_code == 401
+    assert "Authentication required" in response.json()["detail"] or "Bearer" in response.json()["detail"]
+
+
+def test_unauthenticated_verify_sample_rejected():
+    """Verify dataset verification rejects unauthenticated requests with 401 Unauthorized."""
+    response = client.post("/api/v1/dataset/verify-sample/DOC_REAL_003")
+    assert response.status_code == 401
+
+
+def test_unauthenticated_synthetic_execute_rejected():
+    """Verify synthetic test case execution rejects unauthenticated requests with 401 Unauthorized."""
+    response = client.post("/api/v1/test-cases/execute/TC_SYNTH_001")
+    assert response.status_code == 401
+
+
+# ------------------------------------------------------------------------------
+# Authenticated Document & Pipeline Tests
+# ------------------------------------------------------------------------------
+
+def test_upload_invalid_extension(auth_headers):
     """Verify upload rejects non-PDF files with 400 Bad Request."""
     response = client.post(
         "/api/v1/documents/upload",
         files={"file": ("test.txt", b"plain text", "text/plain")},
+        headers=auth_headers,
     )
     assert response.status_code == 400
     assert "Unsupported file format" in response.json()["detail"]
 
 
-def test_upload_empty_file():
+def test_upload_empty_file(auth_headers):
     """Verify upload rejects 0-byte files with 400 Bad Request."""
     response = client.post(
         "/api/v1/documents/upload",
         files={"file": ("empty.pdf", b"", "application/pdf")},
+        headers=auth_headers,
     )
     assert response.status_code == 400
     assert "empty" in response.json()["detail"]
 
 
-def test_upload_corrupt_binary():
+def test_upload_corrupt_binary(auth_headers):
     """Verify corrupt stream produces structured failure response instead of 500 error."""
     assert CORRUPT_BIN.exists()
     with open(CORRUPT_BIN, "rb") as f:
@@ -92,6 +151,7 @@ def test_upload_corrupt_binary():
     response = client.post(
         "/api/v1/documents/upload",
         files={"file": ("corrupt.pdf", content, "application/pdf")},
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -100,7 +160,7 @@ def test_upload_corrupt_binary():
     assert any(f["rule_id"] in ("AUTH_FORMAT_HEADER", "AUTH_STRUCTURAL_CORRUPT") for f in data["normalized_findings"])
 
 
-def test_upload_valid_pdf_end_to_end():
+def test_upload_valid_pdf_end_to_end(auth_headers):
     """Verify upload of real AICTE approval letter executes full pipeline cleanly."""
     assert SAMPLE_PDF.exists()
     with open(SAMPLE_PDF, "rb") as f:
@@ -110,6 +170,7 @@ def test_upload_valid_pdf_end_to_end():
         "/api/v1/documents/upload",
         files={"file": ("KGEC_AICTE_Approval_2026-27.pdf", pdf_bytes, "application/pdf")},
         data={"document_type": "aicte_eoa", "enable_privacy_masking": "true"},
+        headers=auth_headers,
     )
     assert response.status_code == 200
     data = response.json()
@@ -126,9 +187,9 @@ def test_upload_valid_pdf_end_to_end():
     assert summary["overall_status"] in ("VERIFIED", "NEEDS_HUMAN_REVIEW")
 
 
-def test_verify_dataset_sample_endpoint():
+def test_verify_dataset_sample_endpoint(auth_headers):
     """Verify /api/v1/dataset/verify-sample/DOC_REAL_003 processes directly from disk."""
-    response = client.post("/api/v1/dataset/verify-sample/DOC_REAL_003")
+    response = client.post("/api/v1/dataset/verify-sample/DOC_REAL_003", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["document_id"] == "DOC_REAL_003"
@@ -136,9 +197,9 @@ def test_verify_dataset_sample_endpoint():
     assert len(data["normalized_findings"]) > 0
 
 
-def test_execute_synthetic_test_case_tc01():
+def test_execute_synthetic_test_case_tc01(auth_headers):
     """Verify execution of TC_SYNTH_001 (Valid structured fields)."""
-    response = client.post("/api/v1/test-cases/execute/TC_SYNTH_001")
+    response = client.post("/api/v1/test-cases/execute/TC_SYNTH_001", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["test_id"] == "TC_SYNTH_001"
@@ -146,9 +207,9 @@ def test_execute_synthetic_test_case_tc01():
     assert data["passed_expected_scenario"] is True
 
 
-def test_execute_synthetic_test_case_tc05_cross_document():
+def test_execute_synthetic_test_case_tc05_cross_document(auth_headers):
     """Verify execution of TC_SYNTH_005 (Institution ID mismatch across documents)."""
-    response = client.post("/api/v1/test-cases/execute/TC_SYNTH_005")
+    response = client.post("/api/v1/test-cases/execute/TC_SYNTH_005", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["test_id"] == "TC_SYNTH_005"

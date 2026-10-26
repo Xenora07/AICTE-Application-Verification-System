@@ -9,8 +9,18 @@ import {
   SyntheticTestCase,
   SystemHealth,
 } from '../types/api';
+import { authStorage } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+function getAuthHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
+  const token = authStorage.getToken();
+  const headers: Record<string, string> = { ...(extraHeaders || {}) };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -31,7 +41,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export const api = {
   /** Check system health and capabilities */
   async getHealth(): Promise<SystemHealth> {
-    const res = await fetch(`${API_BASE_URL}/health`);
+    const res = await fetch(`${API_BASE_URL}/health`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse<SystemHealth>(res);
   },
 
@@ -54,6 +66,7 @@ export const api = {
 
     const res = await fetch(`${API_BASE_URL}/documents/upload`, {
       method: 'POST',
+      headers: getAuthHeaders(),
       body: formData,
     });
     return handleResponse<DocumentProcessResponse>(res);
@@ -63,7 +76,7 @@ export const api = {
   async crossValidateDocuments(documentIds?: string[]): Promise<CrossValidateResponse> {
     const res = await fetch(`${API_BASE_URL}/documents/cross-validate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(documentIds ? { document_ids: documentIds } : {}),
     });
     return handleResponse<CrossValidateResponse>(res);
@@ -71,7 +84,9 @@ export const api = {
 
   /** List cataloged dataset documents from data_manifest.csv */
   async getDatasetManifest(): Promise<{ total_documents: number; documents: DatasetManifestDocument[] }> {
-    const res = await fetch(`${API_BASE_URL}/dataset/manifest`);
+    const res = await fetch(`${API_BASE_URL}/dataset/manifest`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse<{ total_documents: number; documents: DatasetManifestDocument[] }>(res);
   },
 
@@ -91,13 +106,16 @@ export const api = {
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await fetch(`${API_BASE_URL}/dataset/verify-sample/${encodeURIComponent(docId)}${query}`, {
       method: 'POST',
+      headers: getAuthHeaders(),
     });
     return handleResponse<DocumentProcessResponse>(res);
   },
 
   /** List all 10 synthetic test scenarios */
   async getTestCases(): Promise<{ total_test_cases: number; test_cases: SyntheticTestCase[] }> {
-    const res = await fetch(`${API_BASE_URL}/test-cases`);
+    const res = await fetch(`${API_BASE_URL}/test-cases`, {
+      headers: getAuthHeaders(),
+    });
     return handleResponse<{ total_test_cases: number; test_cases: SyntheticTestCase[] }>(res);
   },
 
@@ -105,6 +123,7 @@ export const api = {
   async executeTestScenario(testId: string): Promise<any> {
     const res = await fetch(`${API_BASE_URL}/test-cases/execute/${encodeURIComponent(testId)}`, {
       method: 'POST',
+      headers: getAuthHeaders(),
     });
     return handleResponse<any>(res);
   },

@@ -54,10 +54,10 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
       }}>
         <div>
           <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '3px' }}>
-            Pre-Cataloged Dataset Documents
+            Sample Documents
           </h3>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            One-click execution of the regulatory verification pipeline on real and scanned documents from the pre-indexed regulatory dataset
+            Try verification using the available sample documents
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
             <Search size={13} style={{ position: 'absolute', left: '9px', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Search dataset documents..."
+              placeholder="Search sample documents..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
@@ -94,26 +94,26 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
               color: 'var(--text-primary)',
             }}
           >
-            <option value="all">All Categories ({documents.length})</option>
-            <option value="real_documents">Real Digital</option>
+            <option value="all">All Types ({documents.length})</option>
+            <option value="real_documents">Digital PDFs</option>
             <option value="scanned_documents">Scanned & Hybrid</option>
           </select>
         </div>
       </div>
 
-      {/* Dense Table of Dataset Documents */}
+      {/* Dense Table of Sample Documents */}
       <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
         <table className="ledger-table">
           <thead>
             <tr>
               <th>Doc ID</th>
               <th>File Name</th>
-              <th>Category</th>
+              <th>Type</th>
               <th>Document Type</th>
               <th>Pages</th>
               <th>Size</th>
-              <th>Provenance</th>
-              <th style={{ textAlign: 'right' }}>Pipeline</th>
+              <th>Source</th>
+              <th style={{ textAlign: 'right' }}>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -121,10 +121,10 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
               <tr>
                 <td colSpan={8} style={{ padding: '36px 20px', textAlign: 'center' }}>
                   <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                    No dataset documents match your search
+                    No sample documents match your search
                   </div>
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Try searching by document ID, filename, or selecting another category.
+                    Try searching by document ID, filename, or selecting another type.
                   </div>
                 </td>
               </tr>
@@ -171,7 +171,7 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
                         style={{ padding: '3px 10px', fontSize: '11.5px' }}
                       >
                         <Play size={11} />
-                        <span>{isLoading && isActive ? 'Running...' : 'Run Pipeline'}</span>
+                        <span>{isLoading && isActive ? 'Verifying...' : 'Verify Sample'}</span>
                       </button>
                     </td>
                   </tr>

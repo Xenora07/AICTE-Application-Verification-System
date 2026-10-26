@@ -19,10 +19,10 @@ export const SyntheticTestRunner: React.FC<SyntheticTestRunnerProps> = ({
     <div className="surface-card" style={{ padding: '22px', marginBottom: '24px' }}>
       <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '3px' }}>
-          Synthetic Regulatory Edge Cases & Failure Scenarios (TC01 – TC10)
+          Test Scenarios (TC01 – TC10)
         </h3>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Execute standardized synthetic scenarios to demonstrate how the deterministic validation engine, authenticity gateway, and human-review routing respond to deliberate regulatory discrepancies.
+          Run test scenarios to see how the system checks rules, detects issues, and flags documents for review.
         </p>
       </div>
 
