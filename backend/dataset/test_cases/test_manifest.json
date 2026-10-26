@@ -1,0 +1,205 @@
+[
+  {
+    "test_id": "TC_SYNTH_001",
+    "scenario_name": "Valid structured fields",
+    "description": "Standard extraction and normalization on a complete, valid regulatory document without discrepancies.",
+    "purpose": "Verify standard extraction and normalization on a complete, valid regulatory document without discrepancies.",
+    "document_type": "aicte_eoa",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc01_valid_structured_fields.json"
+    ],
+    "expected_outcome": "SUCCESS",
+    "expected_findings": [],
+    "expected_rule_ids": [
+      "RULE_SCHEMA_CONFORMANCE"
+    ],
+    "expected_severity": "INFO",
+    "requires_human_review": false
+  },
+  {
+    "test_id": "TC_SYNTH_002",
+    "scenario_name": "Missing required field",
+    "description": "Detection of omitted mandatory fields producing explicit null normalized values and missing-field rule flags.",
+    "purpose": "Verify that omitted mandatory fields (e.g., missing academic_year) produce explicit null normalized values and missing-field rule flags.",
+    "document_type": "aicte_eoa",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc02_missing_required_field.json"
+    ],
+    "expected_outcome": "FAILED_VALIDATION",
+    "expected_findings": [
+      "Mandatory field 'academic_year' missing from document payload"
+    ],
+    "expected_rule_ids": [
+      "RULE_REQ_ACADEMIC_YEAR"
+    ],
+    "expected_severity": "HIGH",
+    "requires_human_review": false
+  },
+  {
+    "test_id": "TC_SYNTH_003",
+    "scenario_name": "Invalid ID format",
+    "description": "Validation failure when application ID or permanent institute ID violates standard regex formatting.",
+    "purpose": "Detect malformed application numbers or permanent institute IDs that violate standard AICTE format (e.g., non-numeric characters).",
+    "document_type": "aicte_eoa",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc03_invalid_id_format.json"
+    ],
+    "expected_outcome": "FAILED_VALIDATION",
+    "expected_findings": [
+      "Application ID 'INVALID-APP-ID-XYZ' violates pattern '^1-[0-9]{11}$'"
+    ],
+    "expected_rule_ids": [
+      "RULE_FORMAT_APP_ID"
+    ],
+    "expected_severity": "MEDIUM",
+    "requires_human_review": false
+  },
+  {
+    "test_id": "TC_SYNTH_004",
+    "scenario_name": "Inconsistent dates",
+    "description": "Validation failure when validity end date precedes validity start date.",
+    "purpose": "Detect inverted or impossible validity intervals (e.g., valid_to precedes valid_from).",
+    "document_type": "naac_certificate",
+    "is_synthetic": true,
+    "notes": "Synthetic test case: simulated OCR confidence values are test-only indicators and not real engine output.",
+    "fixture_references": [
+      "test_cases/fixtures/tc04_inconsistent_dates.json"
+    ],
+    "expected_outcome": "FAILED_VALIDATION",
+    "expected_findings": [
+      "Accreditation valid_to '2024-05-01' is earlier than valid_from '2025-06-01'"
+    ],
+    "expected_rule_ids": [
+      "RULE_DATE_RANGE_INVALID"
+    ],
+    "expected_severity": "HIGH",
+    "requires_human_review": false
+  },
+  {
+    "test_id": "TC_SYNTH_005",
+    "scenario_name": "Institution ID mismatch across documents",
+    "description": "Cross-document validation failure when an institution submits two documents declaring conflicting Permanent Institute IDs.",
+    "purpose": "Verify cross-validation detection when an institution submits two documents declaring conflicting Permanent Institute IDs.",
+    "document_type": "cross_document_pair",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc05_institution_id_mismatch_a.json",
+      "test_cases/fixtures/tc05_institution_id_mismatch_b.json"
+    ],
+    "expected_outcome": "FAILED_CONSISTENCY",
+    "expected_findings": [
+      "Permanent Institute ID mismatch between EoA (1-4775731) and Disclosure (1-9999999)"
+    ],
+    "expected_rule_ids": [
+      "RULE_CROSS_INSTITUTION_ID"
+    ],
+    "expected_severity": "CRITICAL",
+    "requires_human_review": true
+  },
+  {
+    "test_id": "TC_SYNTH_006",
+    "scenario_name": "Programme/intake mismatch",
+    "description": "Cross-document validation failure when claimed programme intake exceeds AICTE approved intake quota.",
+    "purpose": "Catch discrepancies between intake claimed in Mandatory Disclosure and intake approved in AICTE EoA.",
+    "document_type": "cross_document_pair",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc06_intake_mismatch_eoa.json",
+      "test_cases/fixtures/tc06_intake_mismatch_disclosure.json"
+    ],
+    "expected_outcome": "FAILED_CONSISTENCY",
+    "expected_findings": [
+      "Intake for Computer Science exceeds approved quota: claimed 180, approved 120"
+    ],
+    "expected_rule_ids": [
+      "RULE_CROSS_INTAKE_MISMATCH"
+    ],
+    "expected_severity": "HIGH",
+    "requires_human_review": true
+  },
+  {
+    "test_id": "TC_SYNTH_007",
+    "scenario_name": "Duplicate document",
+    "description": "Integrity check failure when identical document hash is submitted across multiple sessions.",
+    "purpose": "Detect duplicate submissions with identical payload or checksum for the same application session.",
+    "document_type": "aicte_eoa",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc07_duplicate_doc.json"
+    ],
+    "expected_outcome": "DUPLICATE_DETECTED",
+    "expected_findings": [
+      "Document sha256 checksum matches existing submission doc_id 'DOC_REAL_003'"
+    ],
+    "expected_rule_ids": [
+      "RULE_INTEGRITY_DUPLICATE_HASH"
+    ],
+    "expected_severity": "MEDIUM",
+    "requires_human_review": false
+  },
+  {
+    "test_id": "TC_SYNTH_008",
+    "scenario_name": "Low-confidence OCR",
+    "description": "Routing to human review when simulated OCR engine confidence falls below acceptance threshold (0.65).",
+    "purpose": "Flag values extracted via OCR where engine confidence is below acceptance threshold (0.65) or characters are ambiguous (O vs 0).",
+    "document_type": "naac_certificate",
+    "is_synthetic": true,
+    "notes": "Synthetic test case: simulated OCR confidence values are test-only indicators and not real engine output.",
+    "fixture_references": [
+      "test_cases/fixtures/tc08_low_confidence_ocr.json"
+    ],
+    "expected_outcome": "NEEDS_HUMAN_REVIEW",
+    "expected_findings": [
+      "CGPA field extracted with low confidence (0.48 < 0.65 threshold)"
+    ],
+    "expected_rule_ids": [
+      "RULE_OCR_CONFIDENCE_THRESHOLD"
+    ],
+    "expected_severity": "MEDIUM",
+    "requires_human_review": true
+  },
+  {
+    "test_id": "TC_SYNTH_009",
+    "scenario_name": "Malformed/unreadable PDF",
+    "description": "Structured parser failure handling when input binary stream is truncated or corrupt.",
+    "purpose": "Ensure corrupt or truncated input produces a structured processing failure instead of an unhandled crash.",
+    "document_type": "corrupted_binary",
+    "is_synthetic": true,
+    "fixture_references": [
+      "test_cases/fixtures/tc09_malformed_unreadable.bin"
+    ],
+    "expected_outcome": "EXTRACTION_ERROR",
+    "expected_findings": [
+      "Input stream is corrupted or not a valid PDF structure"
+    ],
+    "expected_rule_ids": [
+      "RULE_FILE_PARSEABLE"
+    ],
+    "expected_severity": "CRITICAL",
+    "requires_human_review": true
+  },
+  {
+    "test_id": "TC_SYNTH_010",
+    "scenario_name": "Inconclusive evidence requiring human review",
+    "description": "Routing to human reviewer when conflicting values are extracted from different pages of the same document.",
+    "purpose": "Flag cases with conflicting extracted values on different pages or partial OCR recognition requiring human adjudication.",
+    "document_type": "nba_accreditation",
+    "is_synthetic": true,
+    "notes": "Synthetic test case: simulated OCR confidence values are test-only indicators and not real engine output.",
+    "fixture_references": [
+      "test_cases/fixtures/tc10_inconclusive_human_review.json"
+    ],
+    "expected_outcome": "NEEDS_HUMAN_REVIEW",
+    "expected_findings": [
+      "Conflicting accreditation expiry dates detected across page 1 and page 3"
+    ],
+    "expected_rule_ids": [
+      "RULE_AMBIGUOUS_EVIDENCE"
+    ],
+    "expected_severity": "HIGH",
+    "requires_human_review": true
+  }
+]

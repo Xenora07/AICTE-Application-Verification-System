@@ -6,16 +6,28 @@ and serves the static reviewer dashboard frontend.
 
 import os
 import sys
+import types
 from pathlib import Path
 
-# Ensure repo root and dataset root are on sys.path
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DATASET_PATH = REPO_ROOT / "dataset"
+# Ensure backend root, repo root, and dataset root are on sys.path
+BACKEND_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_DIR.parent
+DATASET_PATH = BACKEND_DIR / "dataset" if (BACKEND_DIR / "dataset").exists() else REPO_ROOT / "dataset"
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 
-for p in [str(REPO_ROOT), str(DATASET_PATH)]:
+for p in [str(BACKEND_DIR), str(REPO_ROOT), str(DATASET_PATH)]:
     if p not in sys.path:
         sys.path.insert(0, p)
+
+# In Vercel serverless multi-service mode (where 'root' is 'backend/'),
+# /var/task is the backend directory itself without an enclosing 'backend' folder.
+# Provide a synthetic module alias so 'backend.*' imports resolve cleanly.
+if "backend" not in sys.modules:
+    backend_pkg = types.ModuleType("backend")
+    backend_pkg.__path__ = [str(BACKEND_DIR)]
+    backend_pkg.__file__ = str(BACKEND_DIR / "__init__.py")
+    backend_pkg.__package__ = "backend"
+    sys.modules["backend"] = backend_pkg
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

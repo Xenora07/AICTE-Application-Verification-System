@@ -5,9 +5,15 @@ backend/common/constants.py - Global constants and regulatory definitions for SI
 from pathlib import Path
 
 # Paths
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-BACKEND_ROOT = REPO_ROOT / "backend"
-DATASET_ROOT = REPO_ROOT / "dataset"
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = BACKEND_ROOT.parent
+
+if (BACKEND_ROOT / "dataset").exists():
+    DATASET_ROOT = BACKEND_ROOT / "dataset"
+elif (REPO_ROOT / "dataset").exists():
+    DATASET_ROOT = REPO_ROOT / "dataset"
+else:
+    DATASET_ROOT = REPO_ROOT / "dataset"
 REAL_DOCS_DIR = DATASET_ROOT / "real_documents"
 SCANNED_DOCS_DIR = DATASET_ROOT / "scanned_documents"
 DATASET_MANIFEST_PATH = DATASET_ROOT / "data_manifest.csv"

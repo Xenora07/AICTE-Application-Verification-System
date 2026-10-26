@@ -1,0 +1,21 @@
+{
+  "document_id": "SYNTH_DOC_006A",
+  "source_file": "synthetic_fixtures/cross_intake_eoa.pdf",
+  "sha256": "6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "aicte_eoa",
+  "table_data": [
+    {
+      "table_name": "approved_courses_and_intake",
+      "page_number": 2,
+      "rows": [
+        {
+          "programme": "ENGINEERING AND TECHNOLOGY",
+          "course": "COMPUTER SCIENCE AND ENGINEERING",
+          "approved_intake": 120
+        }
+      ]
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}

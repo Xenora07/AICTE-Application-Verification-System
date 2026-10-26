@@ -1,0 +1,30 @@
+{
+  "document_id": "SYNTH_DOC_005A",
+  "source_file": "synthetic_fixtures/cross_doc_eoa.pdf",
+  "sha256": "5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "aicte_eoa",
+  "classification_confidence": null,
+  "processing_status": "SUCCESS",
+  "fields": {
+    "institution_name": {
+      "raw_value": "NATIONAL INSTITUTE OF APPLIED SCIENCES",
+      "normalized_value": "National Institute of Applied Sciences",
+      "page_number": 1,
+      "bounding_box": [72.0, 140.0, 390.0, 155.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false
+    },
+    "permanent_institute_id": {
+      "raw_value": "1-4775731",
+      "normalized_value": "1-4775731",
+      "page_number": 1,
+      "bounding_box": [150.0, 160.0, 240.0, 172.0],
+      "confidence": null,
+      "extraction_method": "digital",
+      "is_uncertain": false
+    }
+  },
+  "warnings": [],
+  "errors": []
+}

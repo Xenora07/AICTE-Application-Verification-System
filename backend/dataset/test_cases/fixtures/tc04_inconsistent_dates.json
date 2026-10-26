@@ -1,0 +1,68 @@
+{
+  "document_id": "SYNTH_DOC_004",
+  "source_file": "synthetic_fixtures/naac_certificate_bad_dates.pdf",
+  "sha256": "3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "document_type": "naac_certificate",
+  "classification_confidence": null,
+  "processing_status": "SUCCESS",
+  "processing_metadata": {
+    "total_pages": 1,
+    "processed_pages": 1,
+    "extraction_path": "ocr",
+    "ocr_pages": [1],
+    "digital_pages": [],
+    "ocr_backend": "synthetic_test_fixture"
+  },
+  "fields": {
+    "institution_name": {
+      "raw_value": "METROPOLITAN UNIVERSITY",
+      "normalized_value": "Metropolitan University",
+      "page_number": 1,
+      "bounding_box": [100.0, 180.0, 420.0, 205.0],
+      "confidence": 0.94,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    },
+    "accreditation_grade": {
+      "raw_value": "A+",
+      "normalized_value": "A+",
+      "page_number": 1,
+      "bounding_box": [280.0, 310.0, 320.0, 335.0],
+      "confidence": 0.97,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    },
+    "cgpa": {
+      "raw_value": "3.42",
+      "normalized_value": 3.42,
+      "page_number": 1,
+      "bounding_box": [270.0, 350.0, 330.0, 368.0],
+      "confidence": 0.92,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    },
+    "valid_from": {
+      "raw_value": "June 01, 2025",
+      "normalized_value": "2025-06-01",
+      "page_number": 1,
+      "bounding_box": [150.0, 500.0, 260.0, 515.0],
+      "confidence": 0.89,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    },
+    "valid_to": {
+      "raw_value": "May 01, 2024",
+      "normalized_value": "2024-05-01",
+      "page_number": 1,
+      "bounding_box": [340.0, 500.0, 450.0, 515.0],
+      "confidence": 0.88,
+      "extraction_method": "ocr",
+      "is_uncertain": false
+    }
+  },
+  "table_data": [],
+  "warnings": [
+    "Chronological anomaly: valid_to (2024-05-01) is earlier than valid_from (2025-06-01)"
+  ],
+  "errors": []
+}
