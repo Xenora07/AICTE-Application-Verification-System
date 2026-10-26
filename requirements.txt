@@ -11,8 +11,8 @@ pydantic-settings>=2.2.0
 # Authentication & Security
 pyjwt>=2.8.0
 
-# Document Processing & PDF Parsing
-pymupdf>=1.24.0
+# Document Processing & PDF Parsing (Pinned <1.25 to avoid bundling 200MB+ onnxruntime/pymupdf4llm into serverless lambda)
+pymupdf>=1.24.0,<1.25.0
 pillow>=10.0.0
 
 # Testing & Quality Assurance

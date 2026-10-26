@@ -18,3 +18,5 @@ backend/data/*.db
 backend/data/*.sqlite*
 *.db
 *.sqlite3
+
+.vercel
