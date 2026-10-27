@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Database, FileText, CheckCircle2, Play } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Database, FileText, CheckCircle2, Play, Shield } from 'lucide-react';
 import { DatasetManifestDocument } from '../types/api';
 
 interface DatasetSampleSelectorProps {
@@ -7,6 +7,8 @@ interface DatasetSampleSelectorProps {
   onSelectSample: (docId: string) => void;
   isLoading: boolean;
   activeDocId?: string;
+  isAuthenticated?: boolean;
+  onRequireAuth?: (message?: string, docId?: string) => void;
 }
 
 const DOC_TYPE_DISPLAY_NAMES: Record<string, string> = {
@@ -15,6 +17,9 @@ const DOC_TYPE_DISPLAY_NAMES: Record<string, string> = {
   naac_certificate: 'NAAC Certificate',
   nba_accreditation: 'NBA Accreditation',
 };
+
+const AUTH_REQUIRED_MESSAGE =
+  'Auditor login required to run document verification and audit logging. Please sign in or register.';
 
 export const formatDocTypeDisplay = (type?: string | null): string => {
   if (!type || type === 'unknown') return 'Unclassified';
@@ -26,9 +31,29 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
   onSelectSample,
   isLoading,
   activeDocId,
+  isAuthenticated = false,
+  onRequireAuth,
 }) => {
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [authAlert, setAuthAlert] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthAlert(null);
+    }
+  }, [isAuthenticated]);
+
+  const handleActionClick = (docId: string) => {
+    if (!isAuthenticated) {
+      setAuthAlert(AUTH_REQUIRED_MESSAGE);
+      if (onRequireAuth) {
+        onRequireAuth(AUTH_REQUIRED_MESSAGE, docId);
+      }
+      return;
+    }
+    onSelectSample(docId);
+  };
 
   const filtered = documents.filter((doc) => {
     const matchesType = filterType === 'all' || doc.dataset_category === filterType;
@@ -42,6 +67,47 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
 
   return (
     <div className="surface-card" style={{ padding: '20px', marginBottom: '20px' }}>
+      {/* Informative Auth Required Alert */}
+      {authAlert && (
+        <div
+          role="alert"
+          className="auth-required-banner"
+          style={{
+            padding: '10px 14px',
+            backgroundColor: 'var(--color-brand-light, #eff6ff)',
+            border: '1px solid var(--color-brand-border, #bfdbfe)',
+            borderRadius: '6px',
+            color: 'var(--color-brand, #1e40af)',
+            fontSize: '12px',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Shield size={16} style={{ flexShrink: 0, color: 'var(--color-brand, #2563eb)' }} />
+            <span>{authAlert}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAuthAlert(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-brand, #1e40af)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              padding: '2px 6px',
+            }}
+            aria-label="Dismiss message"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -164,15 +230,27 @@ export const DatasetSampleSelector: React.FC<DatasetSampleSelectorProps> = ({
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button
-                        onClick={() => onSelectSample(doc.doc_id)}
-                        disabled={isLoading}
-                        className={`btn ${isActive ? 'btn-brand' : 'btn-secondary'} btn-sm`}
-                        style={{ padding: '3px 10px', fontSize: '11.5px' }}
-                      >
-                        <Play size={11} />
-                        <span>{isLoading && isActive ? 'Verifying...' : 'Verify Sample'}</span>
-                      </button>
+                      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                        <button
+                          onClick={() => handleActionClick(doc.doc_id)}
+                          disabled={isLoading}
+                          className={`btn ${isActive ? 'btn-brand' : 'btn-secondary'} btn-sm`}
+                          style={{ padding: '3px 10px', fontSize: '11.5px' }}
+                          title={!isAuthenticated ? 'Sign in to verify' : 'Verify Sample'}
+                          aria-label={!isAuthenticated ? `Verify Sample ${doc.doc_id} (Sign in to verify)` : `Verify Sample ${doc.doc_id}`}
+                        >
+                          <Play size={11} />
+                          <span>{isLoading && isActive ? 'Verifying...' : 'Verify Sample'}</span>
+                        </button>
+                        {!isAuthenticated && (
+                          <span
+                            className="guest-verify-hint"
+                            style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.2' }}
+                          >
+                            Sign in to verify
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

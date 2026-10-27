@@ -9,10 +9,17 @@
  * 4. Preserving adjudications across panel close (isOpen: false) and reopen (isOpen: true).
  * 5. Dashboard confirmation alert formatting identifying selected decision and rule.
  * 6. UI-level session draft boundary (honest limitation: no silent backend loss claims).
+ * 7. Regression Coverage: Draft counter updates, remarks preservation, duplicate click idempotency, Done Reviewing.
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+
+const DEFAULT_NOTES = {
+  CONFIRMED_VALID: 'Accepted exception based on official stamp and manual cross-verification.',
+  REJECTED_NON_COMPLIANT: 'Confirmed regulatory non-compliance; application flagged for remediation.',
+  REQUEST_CLARIFICATION: 'Issued formal clarification request to institution regarding evidence discrepancy.',
+};
 
 // Simulated state manager representing App.tsx & HumanReviewDrawer.tsx contract
 class AdjudicationWorkflowManager {
@@ -42,13 +49,15 @@ class AdjudicationWorkflowManager {
   }
 
   selectDecision(finding, decision, customNote = '') {
-    const defaultNotes = {
-      CONFIRMED_VALID: 'Accepted exception based on official stamp and manual cross-verification.',
-      REJECTED_NON_COMPLIANT: 'Confirmed regulatory non-compliance; application flagged for remediation.',
-      REQUEST_CLARIFICATION: 'Issued formal clarification request to institution regarding evidence discrepancy.',
-    };
+    const defaultNote = DEFAULT_NOTES[decision] || 'Adjudicated by regulatory officer.';
+    const isOtherDefaultNote = Object.values(DEFAULT_NOTES).includes(customNote.trim());
 
-    const noteToSave = customNote.trim() || defaultNotes[decision] || 'Adjudicated by regulatory officer.';
+    // If remarks are empty OR match any action's default note, use the new decision's default note.
+    // Otherwise preserve the officer's custom typed note.
+    const noteToSave = (!customNote.trim() || isOtherDefaultNote)
+      ? defaultNote
+      : customNote.trim();
+
     const record = {
       findingId: finding.finding_id,
       ruleId: finding.rule_id,
@@ -81,6 +90,10 @@ class AdjudicationWorkflowManager {
 
   getDecisionForFinding(findingId) {
     return this.adjudications[findingId];
+  }
+
+  getDraftCount(reviewableFindings = sampleFindings) {
+    return reviewableFindings.filter((f) => !!this.adjudications[f.finding_id]).length;
   }
 }
 
@@ -268,7 +281,6 @@ describe('Human Review Adjudication Panel - Action Flow Tests', () => {
   });
 
   it('11. should format document types and field keys to human-readable labels while preserving raw identifiers', () => {
-    // Document type mapper test
     const docTypeMap = {
       aicte_eoa: 'AICTE EoA',
       aicte_mandatory_disclosure: 'Mandatory Disclosure',
@@ -278,7 +290,6 @@ describe('Human Review Adjudication Panel - Action Flow Tests', () => {
     assert.equal(docTypeMap['aicte_eoa'], 'AICTE EoA');
     assert.equal(docTypeMap['aicte_mandatory_disclosure'], 'Mandatory Disclosure');
 
-    // Field key mapper test
     const formatFieldKey = (key) => {
       const fieldLabels = {
         academic_year: 'Academic Year',
@@ -294,5 +305,88 @@ describe('Human Review Adjudication Panel - Action Flow Tests', () => {
     assert.equal(formatFieldKey('permanent_institute_id'), 'Permanent Institute ID');
     assert.equal(formatFieldKey('academic_year_start'), 'Academic Year Start');
     assert.equal(formatFieldKey('unknown_custom_field'), 'Unknown Custom Field');
+  });
+
+  // ============================================================================
+  // Extended Regression Tests for SIH26261 Action Workflow Requirements
+  // ============================================================================
+
+  it('12. should immediately and accurately update draft counter when actions are recorded', () => {
+    const manager = new AdjudicationWorkflowManager();
+    manager.openDrawer(null, sampleFindings);
+
+    // Initial draft count must be 0 of 2
+    assert.equal(manager.getDraftCount(sampleFindings), 0);
+
+    // Record decision on finding 0 (1 of 2)
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    assert.equal(manager.getDraftCount(sampleFindings), 1);
+
+    // Record decision on finding 1 (2 of 2)
+    manager.selectDecision(sampleFindings[1], 'REJECTED_NON_COMPLIANT');
+    assert.equal(manager.getDraftCount(sampleFindings), 2);
+  });
+
+  it('13. should ensure custom officer audit remarks are retained with the chosen decision', () => {
+    const manager = new AdjudicationWorkflowManager();
+    manager.openDrawer();
+
+    const specificRemark = 'Clause 4.2 exemption certified by AICTE Regional Director in letter Ref #RD-2026-901.';
+    const record = manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID', specificRemark);
+
+    assert.equal(record.notes, specificRemark);
+    assert.equal(manager.getDecisionForFinding('FIND_EOA_001').notes, specificRemark);
+  });
+
+  it('14. should switch default notes when officer changes decision without custom remarks', () => {
+    const manager = new AdjudicationWorkflowManager();
+    manager.openDrawer();
+
+    // 1. First selects Validate Exception (gets CONFIRMED_VALID default note)
+    const rec1 = manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    assert.match(rec1.notes, /Accepted exception/);
+
+    // 2. Changes mind to Flag Non-Compliant without custom note (must get REJECTED_NON_COMPLIANT default note)
+    const rec2 = manager.selectDecision(sampleFindings[0], 'REJECTED_NON_COMPLIANT', rec1.notes);
+    assert.match(rec2.notes, /Confirmed regulatory non-compliance/);
+
+    // 3. Changes mind to Request Clarification (must get REQUEST_CLARIFICATION default note)
+    const rec3 = manager.selectDecision(sampleFindings[0], 'REQUEST_CLARIFICATION', rec2.notes);
+    assert.match(rec3.notes, /Issued formal clarification request/);
+  });
+
+  it('15. should prevent duplicate adjudication records upon repeated clicks of same or different actions', () => {
+    const manager = new AdjudicationWorkflowManager();
+    manager.openDrawer();
+
+    // Click Validate Exception 5 times
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+    manager.selectDecision(sampleFindings[0], 'CONFIRMED_VALID');
+
+    // Must still contain exactly 1 entry for FIND_EOA_001 and 1 total key
+    assert.equal(Object.keys(manager.adjudications).length, 1);
+    assert.equal(manager.getDraftCount(sampleFindings), 1);
+    assert.equal(manager.getDecisionForFinding('FIND_EOA_001').decision, 'CONFIRMED_VALID');
+  });
+
+  it('16. should behave consistently with Done Reviewing: persists draft determinations and closes panel', () => {
+    const manager = new AdjudicationWorkflowManager();
+    manager.openDrawer('FIND_EOA_001', sampleFindings);
+    assert.equal(manager.isDrawerOpen, true);
+
+    const rec = manager.selectDecision(sampleFindings[0], 'REQUEST_CLARIFICATION', 'Preliminary note');
+
+    // Officer refines remark right before clicking Done Reviewing
+    const refinedRemark = 'Final refined note: submit audited balance sheet page 4.';
+    manager.saveAndClose(sampleFindings[0], rec, refinedRemark);
+
+    assert.equal(manager.isDrawerOpen, false);
+    const finalStored = manager.getDecisionForFinding('FIND_EOA_001');
+    assert.equal(finalStored.decision, 'REQUEST_CLARIFICATION');
+    assert.equal(finalStored.notes, refinedRemark);
+    assert.equal(manager.getDraftCount(sampleFindings), 1);
   });
 });

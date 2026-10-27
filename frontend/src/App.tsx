@@ -101,7 +101,21 @@ const AppContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isReviewDrawerOpen, setIsReviewDrawerOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [uploadedPdfUrl, setUploadedPdfUrl] = useState<string | null>(null);
+
+  const AUTH_REQUIRED_MESSAGE =
+    'Auditor login required to run document verification and audit logging. Please sign in or register.';
+
+  const handleRequireAuth = (message = AUTH_REQUIRED_MESSAGE, pendingDocId?: string) => {
+    setAuthNotice(message);
+    setAuthMode('login');
+    if (pendingDocId) {
+      setActiveSampleId(pendingDocId);
+    }
+    setIsAuthModalOpen(true);
+  };
 
   // Adjudication session state (survives drawer close/reopen)
   const [adjudications, setAdjudications] = useState<Record<string, AdjudicationRecord>>({});
@@ -194,6 +208,10 @@ const AppContent: React.FC = () => {
       ocrThreshold: number;
     }
   ) => {
+    if (!isAuthenticated) {
+      handleRequireAuth();
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -212,6 +230,10 @@ const AppContent: React.FC = () => {
 
   // Handler: Verify dataset sample document
   const handleSelectSample = async (docId: string) => {
+    if (!isAuthenticated) {
+      handleRequireAuth(AUTH_REQUIRED_MESSAGE, docId);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     setActiveSampleId(docId);
@@ -345,10 +367,17 @@ const AppContent: React.FC = () => {
     return (
       <AuthPage
         initialMode={authMode}
-        onAuthSuccess={() => navigateToView('app')}
-        onBackToWelcome={() => navigateToView('welcome')}
+        onAuthSuccess={() => {
+          setAuthNotice(null);
+          navigateToView('app');
+        }}
+        onBackToWelcome={() => {
+          setAuthNotice(null);
+          navigateToView('welcome');
+        }}
         theme={theme}
         onToggleTheme={toggleTheme}
+        notice={authNotice}
       />
     );
   }
@@ -383,8 +412,9 @@ const AppContent: React.FC = () => {
             setCurrentView('welcome');
           }}
           onOpenAuth={() => {
+            setAuthNotice(null);
             setAuthMode('login');
-            setCurrentView('auth');
+            setIsAuthModalOpen(true);
           }}
         />
 
@@ -685,12 +715,16 @@ const AppContent: React.FC = () => {
                     onUpload={handleUpload}
                     isLoading={isLoading}
                     uploadError={error}
+                    isAuthenticated={isAuthenticated}
+                    onRequireAuth={handleRequireAuth}
                   />
                   <DatasetSampleSelector
                     documents={datasetDocs}
                     onSelectSample={handleSelectSample}
                     isLoading={isLoading}
                     activeDocId={activeSampleId}
+                    isAuthenticated={isAuthenticated}
+                    onRequireAuth={handleRequireAuth}
                   />
                 </div>
               )}
@@ -724,6 +758,8 @@ const AppContent: React.FC = () => {
               onSelectSample={handleSelectSample}
               isLoading={isLoading}
               activeDocId={activeSampleId}
+              isAuthenticated={isAuthenticated}
+              onRequireAuth={handleRequireAuth}
             />
           )}
 
@@ -853,6 +889,32 @@ const AppContent: React.FC = () => {
           uploadError={error}
           isModal
           onCloseModal={() => setIsUploadModalOpen(false)}
+          isAuthenticated={isAuthenticated}
+          onRequireAuth={handleRequireAuth}
+        />
+      )}
+
+      {/* Auditor Authentication Gateway Modal */}
+      {isAuthModalOpen && (
+        <AuthPage
+          initialMode={authMode}
+          onAuthSuccess={() => {
+            setIsAuthModalOpen(false);
+            setAuthNotice(null);
+          }}
+          onBackToWelcome={() => {
+            setIsAuthModalOpen(false);
+            setAuthNotice(null);
+            navigateToView('welcome');
+          }}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          isModal
+          onClose={() => {
+            setIsAuthModalOpen(false);
+            setAuthNotice(null);
+          }}
+          notice={authNotice}
         />
       )}
 

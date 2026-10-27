@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, FileText, CheckCircle2, AlertCircle, X, Shield } from 'lucide-react';
 
 interface UploadSectionProps {
   onUpload: (
@@ -15,6 +15,8 @@ interface UploadSectionProps {
   uploadError: string | null;
   isModal?: boolean;
   onCloseModal?: () => void;
+  isAuthenticated?: boolean;
+  onRequireAuth?: (message?: string) => void;
 }
 
 const formatFileSize = (bytes?: number): string => {
@@ -25,12 +27,17 @@ const formatFileSize = (bytes?: number): string => {
   return `${(bytes / 1024).toFixed(1)} KB`;
 };
 
+const AUTH_REQUIRED_MESSAGE =
+  'Auditor login required to run document verification and audit logging. Please sign in or register.';
+
 export const UploadSection: React.FC<UploadSectionProps> = ({
   onUpload,
   isLoading,
   uploadError,
   isModal = false,
   onCloseModal,
+  isAuthenticated = false,
+  onRequireAuth,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -40,7 +47,14 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
   const [enablePrivacyMasking, setEnablePrivacyMasking] = useState(true);
   const [ocrThreshold, setOcrThreshold] = useState(0.65);
   const [clientError, setClientError] = useState<string | null>(null);
+  const [authAlert, setAuthAlert] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthAlert(null);
+    }
+  }, [isAuthenticated]);
 
   const handleFile = (file: File) => {
     setClientError(null);
@@ -70,6 +84,15 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
       setClientError('Please select a PDF document to verify.');
       return;
     }
+
+    if (!isAuthenticated) {
+      setAuthAlert(AUTH_REQUIRED_MESSAGE);
+      if (onRequireAuth) {
+        onRequireAuth(AUTH_REQUIRED_MESSAGE);
+      }
+      return;
+    }
+
     onUpload(selectedFile, {
       documentId: documentId.trim() || undefined,
       documentType: documentType || undefined,
@@ -284,6 +307,47 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
           </div>
         </div>
 
+        {/* Informative Auth Required Alert */}
+        {authAlert && (
+          <div
+            role="alert"
+            className="auth-required-banner"
+            style={{
+              padding: '10px 14px',
+              backgroundColor: 'var(--color-brand-light, #eff6ff)',
+              border: '1px solid var(--color-brand-border, #bfdbfe)',
+              borderRadius: '6px',
+              color: 'var(--color-brand, #1e40af)',
+              fontSize: '12px',
+              marginBottom: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Shield size={16} style={{ flexShrink: 0, color: 'var(--color-brand, #2563eb)' }} />
+              <span>{authAlert}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthAlert(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-brand, #1e40af)',
+                cursor: 'pointer',
+                fontSize: '14px',
+                padding: '2px 6px',
+              }}
+              aria-label="Dismiss message"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Error Alert */}
         {(clientError || uploadError) && (
           <div style={{
@@ -304,12 +368,29 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
         )}
 
         {/* Action Buttons & Guidance */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <div style={{ fontSize: '11.5px', color: selectedFile ? 'var(--color-pass-text)' : 'var(--text-muted)' }}>
             {selectedFile ? '✓ Document ready to verify' : 'Upload a PDF to start verification'}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {!isAuthenticated && (
+              <span
+                className="guest-verify-hint"
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-muted)',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                aria-label="Sign in to verify"
+              >
+                <Shield size={12} style={{ color: 'var(--color-brand)' }} />
+                Sign in to verify
+              </span>
+            )}
             {selectedFile && (
               <button
                 type="button"
@@ -325,6 +406,8 @@ export const UploadSection: React.FC<UploadSectionProps> = ({
               className="btn btn-brand"
               disabled={!canSubmit}
               style={{ minWidth: '160px' }}
+              title={!isAuthenticated ? 'Sign in to verify document' : 'Verify Document'}
+              aria-label={!isAuthenticated ? 'Verify Document (Sign in to verify)' : 'Verify Document'}
             >
               {isLoading ? 'Verifying...' : 'Verify Document'}
             </button>
