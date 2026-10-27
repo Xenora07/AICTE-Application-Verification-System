@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, Info, XCircle, FileUp } from 'lucide-react';
-import { ReviewerSummary } from '../types/api';
+import { AlertTriangle, CheckCircle2, FileText, Info, XCircle, FileUp, Check } from 'lucide-react';
+import { AdjudicationRecord, ReviewerSummary } from '../types/api';
 
 interface ReviewerSummaryBannerProps {
   summary: ReviewerSummary;
@@ -17,6 +17,7 @@ interface ReviewerSummaryBannerProps {
   academicYear?: string | null;
   onOpenAdjudication: () => void;
   onNewVerification?: () => void;
+  adjudications?: Record<string, AdjudicationRecord>;
 }
 
 export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
@@ -34,8 +35,13 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
   academicYear,
   onOpenAdjudication,
   onNewVerification,
+  adjudications = {},
 }) => {
   const [showMetadataModal, setShowMetadataModal] = useState(false);
+
+  const adjudicatedCount = Object.keys(adjudications).length;
+  const totalReviewable = summary.inconclusive_rules + summary.failed_rules;
+  const pendingReviewCount = Math.max(0, totalReviewable - adjudicatedCount);
 
   const formattedSize = fileSizeBytes && fileSizeBytes > 0
     ? fileSizeBytes >= 1024 * 1024
@@ -59,8 +65,6 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
 
   const getStatusBadgeConfig = () => {
     const isUnclassified = !documentType || documentType === 'unknown' || summary.total_rules_evaluated === 0;
-    const isFailed = summary.failed_rules > 0 || processingStatus === 'ACTION_REQUIRED' || processingStatus === 'REJECTED' || summary.overall_status === 'REJECTED';
-    const isNeedsReview = summary.requires_human_review || summary.inconclusive_rules > 0 || processingStatus.includes('WARNING') || processingStatus === 'NEEDS_HUMAN_REVIEW';
 
     if (isUnclassified) {
       return {
@@ -72,6 +76,46 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
         textColor: 'var(--text-secondary)',
       };
     }
+
+    // Check if officer has adjudicated reviewable findings in session draft
+    if (totalReviewable > 0 && pendingReviewCount === 0) {
+      const hasRejected = Object.values(adjudications).some((a) => a.decision === 'REJECTED_NON_COMPLIANT');
+      const hasClarification = Object.values(adjudications).some((a) => a.decision === 'REQUEST_CLARIFICATION');
+
+      if (hasRejected) {
+        return {
+          icon: <XCircle size={20} style={{ color: '#ef4444' }} />,
+          title: 'NON-COMPLIANT (ADJUDICATED)',
+          subtitle: `All ${totalReviewable} finding(s) reviewed • Non-compliance confirmed in session draft`,
+          bg: 'var(--color-fail-bg)',
+          border: 'var(--color-fail-border)',
+          textColor: 'var(--color-fail-text)',
+        };
+      }
+
+      if (hasClarification) {
+        return {
+          icon: <AlertTriangle size={20} style={{ color: '#d97706' }} />,
+          title: 'CLARIFICATION PENDING (ADJUDICATED)',
+          subtitle: `All ${totalReviewable} finding(s) reviewed • Clarification requested in session draft`,
+          bg: 'var(--color-inconclusive-bg)',
+          border: 'var(--color-inconclusive-border)',
+          textColor: 'var(--color-inconclusive-text)',
+        };
+      }
+
+      return {
+        icon: <CheckCircle2 size={20} style={{ color: '#16a34a' }} />,
+        title: 'EXCEPTIONS ACCEPTED (ADJUDICATED)',
+        subtitle: `All ${totalReviewable} finding(s) reviewed • Exceptions confirmed by regulatory officer (Session Draft)`,
+        bg: 'var(--color-pass-bg)',
+        border: 'var(--color-pass-border)',
+        textColor: 'var(--color-pass-text)',
+      };
+    }
+
+    const isFailed = summary.failed_rules > 0 || processingStatus === 'ACTION_REQUIRED' || processingStatus === 'REJECTED' || summary.overall_status === 'REJECTED';
+    const isNeedsReview = summary.requires_human_review || summary.inconclusive_rules > 0 || processingStatus.includes('WARNING') || processingStatus === 'NEEDS_HUMAN_REVIEW';
 
     if (isFailed) {
       return {
@@ -274,6 +318,7 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
                   <div><strong>Passed:</strong> <span style={{ color: '#16a34a' }}>{summary.passed_rules}</span></div>
                   <div><strong>Failed:</strong> <span style={{ color: '#dc2626' }}>{summary.failed_rules}</span></div>
                   <div><strong>Inconclusive:</strong> <span style={{ color: '#d97706' }}>{summary.inconclusive_rules}</span></div>
+                  <div><strong>Adjudications in Session:</strong> <span style={{ color: 'var(--color-brand)' }}>{adjudicatedCount} recorded</span></div>
                   <div><strong>Authenticity Signals:</strong> {summary.authenticity_signals_count}</div>
                   <div><strong>Privacy Redactions:</strong> {summary.privacy_redactions_count}</div>
                 </div>
@@ -337,18 +382,15 @@ export const ReviewerSummaryBanner: React.FC<ReviewerSummaryBannerProps> = ({
 
         {summary.requires_human_review && (
           <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
-            {(() => {
-              const pendingCount = summary.inconclusive_rules + summary.failed_rules;
-              return (
-                <button
-                  onClick={onOpenAdjudication}
-                  className="btn btn-outline-amber btn-sm"
-                  style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px' }}
-                >
-                  Adjudicate Evidence ({pendingCount} {pendingCount === 1 ? 'item' : 'items'})
-                </button>
-              );
-            })()}
+            <button
+              onClick={onOpenAdjudication}
+              className={`btn ${pendingReviewCount === 0 ? 'btn-secondary' : 'btn-outline-amber'} btn-sm`}
+              style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px' }}
+            >
+              {pendingReviewCount > 0
+                ? `Adjudicate Evidence (${pendingReviewCount} pending • ${adjudicatedCount} in draft)`
+                : `Review Adjudications (${adjudicatedCount} in draft)`}
+            </button>
           </div>
         )}
       </div>

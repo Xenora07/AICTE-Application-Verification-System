@@ -505,6 +505,7 @@ const AppContent: React.FC = () => {
                       setUploadedPdfUrl(null);
                       setActiveSampleId(undefined);
                     }}
+                    adjudications={adjudications}
                   />
 
                   {/* Horizontal Workspace Sub-Tabs with ARIA */}

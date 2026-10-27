@@ -21,6 +21,82 @@ const DEFAULT_NOTES = {
   REQUEST_CLARIFICATION: 'Issued formal clarification request to institution regarding evidence discrepancy.',
 };
 
+// Derived Display Helpers matching ValidationFindingsList.tsx & ReviewerSummaryBanner.tsx
+function getAdjudicatedOutcomeView(finding, decided) {
+  if (!decided) {
+    return {
+      statusBadge: finding.outcome === 'PASS' ? 'Passed' : finding.outcome === 'FAIL' ? 'Failed' : 'Inconclusive',
+      badgeClass: finding.outcome === 'PASS' ? 'badge-pass' : finding.outcome === 'FAIL' ? 'badge-fail' : 'badge-inconclusive',
+      isOverridden: false,
+      originalOutcome: finding.outcome,
+      displayText: finding.outcome === 'PASS' ? 'Passed' : finding.outcome === 'FAIL' ? 'Failed' : 'Inconclusive',
+    };
+  }
+
+  switch (decided.decision) {
+    case 'CONFIRMED_VALID':
+      return {
+        statusBadge: 'Exception Accepted',
+        badgeClass: 'badge-pass',
+        isOverridden: true,
+        subtext: `Orig: ${finding.outcome} (Overridden)`,
+        originalOutcome: finding.outcome,
+        displayText: 'Exception Accepted',
+      };
+    case 'REJECTED_NON_COMPLIANT':
+      return {
+        statusBadge: 'Flagged Non-Compliant',
+        badgeClass: 'badge-fail',
+        isOverridden: true,
+        subtext: `Orig: ${finding.outcome} (Confirmed)`,
+        originalOutcome: finding.outcome,
+        displayText: 'Flagged Non-Compliant',
+      };
+    case 'REQUEST_CLARIFICATION':
+      return {
+        statusBadge: 'Clarification Pending',
+        badgeClass: 'badge-inconclusive',
+        isOverridden: true,
+        subtext: `Orig: ${finding.outcome} (Clarifying)`,
+        originalOutcome: finding.outcome,
+        displayText: 'Clarification Pending',
+      };
+  }
+}
+
+function getStatusBadgeConfig(summary, adjudications = {}) {
+  const adjudicatedCount = Object.keys(adjudications).length;
+  const totalReviewable = summary.inconclusive_rules + summary.failed_rules;
+  const pendingReviewCount = Math.max(0, totalReviewable - adjudicatedCount);
+
+  if (totalReviewable > 0 && pendingReviewCount === 0) {
+    const hasRejected = Object.values(adjudications).some((a) => a.decision === 'REJECTED_NON_COMPLIANT');
+    const hasClarification = Object.values(adjudications).some((a) => a.decision === 'REQUEST_CLARIFICATION');
+
+    if (hasRejected) {
+      return {
+        title: 'NON-COMPLIANT (ADJUDICATED)',
+        subtitle: `All ${totalReviewable} finding(s) reviewed • Non-compliance confirmed in session draft`,
+      };
+    }
+    if (hasClarification) {
+      return {
+        title: 'CLARIFICATION PENDING (ADJUDICATED)',
+        subtitle: `All ${totalReviewable} finding(s) reviewed • Clarification requested in session draft`,
+      };
+    }
+    return {
+      title: 'EXCEPTIONS ACCEPTED (ADJUDICATED)',
+      subtitle: `All ${totalReviewable} finding(s) reviewed • Exceptions confirmed by regulatory officer (Session Draft)`,
+    };
+  }
+
+  return {
+    title: 'HUMAN REVIEW REQUIRED',
+    subtitle: `${summary.inconclusive_rules} finding(s) require regulatory adjudication`,
+  };
+}
+
 // Simulated state manager representing App.tsx & HumanReviewDrawer.tsx contract
 class AdjudicationWorkflowManager {
   constructor() {
@@ -387,6 +463,150 @@ describe('Human Review Adjudication Panel - Action Flow Tests', () => {
     const finalStored = manager.getDecisionForFinding('FIND_EOA_001');
     assert.equal(finalStored.decision, 'REQUEST_CLARIFICATION');
     assert.equal(finalStored.notes, refinedRemark);
+    assert.equal(manager.getDraftCount(sampleFindings), 1);
+  });
+
+  it('17. should display "Exception Accepted" with overridden status on main findings view after Done Reviewing Validate Exception', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const finding = sampleFindings[1]; // RULE_REQ_ACADEMIC_YEAR / VAL_LAND_AREA_INCONCL (INCONCLUSIVE)
+    assert.equal(finding.outcome, 'INCONCLUSIVE');
+
+    // Before adjudication: displays original inconclusive badge
+    const initialView = getAdjudicatedOutcomeView(finding, manager.getDecisionForFinding(finding.finding_id));
+    assert.equal(initialView.displayText, 'Inconclusive');
+    assert.equal(initialView.isOverridden, false);
+
+    // Open drawer, select Validate Exception, click Done Reviewing
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    const rec = manager.selectDecision(finding, 'CONFIRMED_VALID', 'Verified official surveyor stamp in Annexure II');
+    manager.saveAndClose(finding, rec, rec.notes);
+
+    // Drawer closes and commits to state
+    assert.equal(manager.isDrawerOpen, false);
+    const decision = manager.getDecisionForFinding(finding.finding_id);
+    assert.ok(decision);
+
+    // Main findings table outcome column reflects adjudication
+    const adjudicatedView = getAdjudicatedOutcomeView(finding, decision);
+    assert.equal(adjudicatedView.displayText, 'Exception Accepted');
+    assert.equal(adjudicatedView.badgeClass, 'badge-pass');
+    assert.equal(adjudicatedView.isOverridden, true);
+    assert.equal(adjudicatedView.subtext, 'Orig: INCONCLUSIVE (Overridden)');
+    assert.equal(adjudicatedView.originalOutcome, 'INCONCLUSIVE');
+
+    // Reviewer summary banner reflects adjudicated status
+    const summaryView = getStatusBadgeConfig({ inconclusive_rules: 1, failed_rules: 0 }, manager.adjudications);
+    assert.equal(summaryView.title, 'EXCEPTIONS ACCEPTED (ADJUDICATED)');
+    assert.match(summaryView.subtitle, /Exceptions confirmed by regulatory officer/);
+  });
+
+  it('18. should display "Flagged Non-Compliant" distinctly from original outcome after Done Reviewing Flag Non-Compliant', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const finding = sampleFindings[1]; // INCONCLUSIVE finding
+
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    const rec = manager.selectDecision(finding, 'REJECTED_NON_COMPLIANT', 'Insufficient land shortfall exceeds 15%');
+    manager.saveAndClose(finding, rec, rec.notes);
+
+    assert.equal(manager.isDrawerOpen, false);
+    const decision = manager.getDecisionForFinding(finding.finding_id);
+
+    const adjudicatedView = getAdjudicatedOutcomeView(finding, decision);
+    assert.equal(adjudicatedView.displayText, 'Flagged Non-Compliant');
+    assert.equal(adjudicatedView.badgeClass, 'badge-fail');
+    assert.equal(adjudicatedView.isOverridden, true);
+    assert.equal(adjudicatedView.subtext, 'Orig: INCONCLUSIVE (Confirmed)');
+
+    // Summary banner reflects non-compliance
+    const summaryView = getStatusBadgeConfig({ inconclusive_rules: 1, failed_rules: 0 }, manager.adjudications);
+    assert.equal(summaryView.title, 'NON-COMPLIANT (ADJUDICATED)');
+    assert.match(summaryView.subtitle, /Non-compliance confirmed/);
+  });
+
+  it('19. should display "Clarification Pending" after Done Reviewing Request Clarification', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const finding = sampleFindings[1]; // INCONCLUSIVE finding
+
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    const rec = manager.selectDecision(finding, 'REQUEST_CLARIFICATION', 'Upload latest municipal mutation deed');
+    manager.saveAndClose(finding, rec, rec.notes);
+
+    assert.equal(manager.isDrawerOpen, false);
+    const decision = manager.getDecisionForFinding(finding.finding_id);
+
+    const adjudicatedView = getAdjudicatedOutcomeView(finding, decision);
+    assert.equal(adjudicatedView.displayText, 'Clarification Pending');
+    assert.equal(adjudicatedView.badgeClass, 'badge-inconclusive');
+    assert.equal(adjudicatedView.isOverridden, true);
+    assert.equal(adjudicatedView.subtext, 'Orig: INCONCLUSIVE (Clarifying)');
+
+    // Summary banner reflects pending clarification
+    const summaryView = getStatusBadgeConfig({ inconclusive_rules: 1, failed_rules: 0 }, manager.adjudications);
+    assert.equal(summaryView.title, 'CLARIFICATION PENDING (ADJUDICATED)');
+    assert.match(summaryView.subtitle, /Clarification requested/);
+  });
+
+  it('20. should retain decision and remarks when reopening drawer after Done Reviewing', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const finding = sampleFindings[0];
+
+    // First review session
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    const customNote = 'NOC validated against regional director database record #4982.';
+    const rec = manager.selectDecision(finding, 'CONFIRMED_VALID', customNote);
+    manager.saveAndClose(finding, rec, customNote);
+    assert.equal(manager.isDrawerOpen, false);
+
+    // Reopen drawer
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    assert.equal(manager.isDrawerOpen, true);
+    const restored = manager.getDecisionForFinding(finding.finding_id);
+    assert.equal(restored.decision, 'CONFIRMED_VALID');
+    assert.equal(restored.notes, customNote);
+    assert.equal(manager.getDraftCount(sampleFindings), 1);
+  });
+
+  it('21. should ensure original validation outcome and evidence are not destroyed or misrepresented', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const finding = { ...sampleFindings[1] }; // Shallow copy
+
+    manager.openDrawer(finding.finding_id, sampleFindings);
+    const rec = manager.selectDecision(finding, 'CONFIRMED_VALID', 'Accepted exception');
+    manager.saveAndClose(finding, rec, rec.notes);
+
+    // Original finding data structure must not be mutated into PASS
+    assert.equal(finding.outcome, 'INCONCLUSIVE');
+    assert.equal(finding.rule_id, 'VAL_LAND_AREA_INCONCL');
+    assert.deepEqual(finding.affected_fields, ['land_area_acres']);
+
+    // Derived display clearly marks it as an override without pretending it passed natively
+    const adjudicatedView = getAdjudicatedOutcomeView(finding, manager.getDecisionForFinding(finding.finding_id));
+    assert.equal(adjudicatedView.displayText, 'Exception Accepted');
+    assert.equal(adjudicatedView.originalOutcome, 'INCONCLUSIVE');
+    assert.ok(adjudicatedView.subtext.includes('Overridden'));
+  });
+
+  it('22. should verify unrelated findings remain completely unchanged', () => {
+    const manager = new AdjudicationWorkflowManager();
+    const findingToAdjudicate = sampleFindings[0];
+    const unrelatedFinding = sampleFindings[1];
+
+    // Adjudicate only finding 0
+    manager.openDrawer(findingToAdjudicate.finding_id, sampleFindings);
+    const rec = manager.selectDecision(findingToAdjudicate, 'CONFIRMED_VALID');
+    manager.saveAndClose(findingToAdjudicate, rec, rec.notes);
+
+    // Finding 0 has an adjudication
+    assert.ok(manager.getDecisionForFinding(findingToAdjudicate.finding_id));
+    const view0 = getAdjudicatedOutcomeView(findingToAdjudicate, manager.getDecisionForFinding(findingToAdjudicate.finding_id));
+    assert.equal(view0.isOverridden, true);
+
+    // Finding 1 MUST have no adjudication and unchanged original view
+    assert.equal(manager.getDecisionForFinding(unrelatedFinding.finding_id), undefined);
+    const view1 = getAdjudicatedOutcomeView(unrelatedFinding, manager.getDecisionForFinding(unrelatedFinding.finding_id));
+    assert.equal(view1.isOverridden, false);
+    assert.equal(view1.displayText, 'Inconclusive');
+    assert.equal(view1.originalOutcome, 'INCONCLUSIVE');
     assert.equal(manager.getDraftCount(sampleFindings), 1);
   });
 });

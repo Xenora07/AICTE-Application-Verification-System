@@ -69,9 +69,13 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
       // Severity
       if (severityFilter !== 'ALL' && f.severity !== severityFilter) return false;
       // Outcome
-      if (outcomeFilter !== 'ALL' && f.outcome !== outcomeFilter) return false;
-      // Needs judgment toggle
-      if (needsJudgmentOnly && !f.requires_human_review && f.outcome === 'PASS') return false;
+      if (outcomeFilter === 'ADJUDICATED') {
+        if (!adjudications[f.finding_id]) return false;
+      } else if (outcomeFilter !== 'ALL' && f.outcome !== outcomeFilter) {
+        return false;
+      }
+      // Needs judgment toggle (filters out already adjudicated findings and PASS findings)
+      if (needsJudgmentOnly && (!f.requires_human_review || !!adjudications[f.finding_id])) return false;
       // Search query
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
@@ -79,11 +83,13 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
         const matchesName = f.rule_name.toLowerCase().includes(query);
         const matchesField = f.affected_fields?.some((af) => af.toLowerCase().includes(query));
         const matchesExplanation = f.explanation.toLowerCase().includes(query);
-        if (!matchesId && !matchesName && !matchesField && !matchesExplanation) return false;
+        const matchesAdjudication = adjudications[f.finding_id]?.decision.toLowerCase().includes(query) ||
+          adjudications[f.finding_id]?.notes.toLowerCase().includes(query);
+        if (!matchesId && !matchesName && !matchesField && !matchesExplanation && !matchesAdjudication) return false;
       }
       return true;
     });
-  }, [findings, typeFilter, severityFilter, outcomeFilter, needsJudgmentOnly, searchTerm]);
+  }, [findings, adjudications, typeFilter, severityFilter, outcomeFilter, needsJudgmentOnly, searchTerm]);
 
   // Active finding
   const activeFinding = useMemo(() => {
@@ -117,6 +123,9 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
   const reviewableCount = useMemo(() => {
     return findings.filter((f) => f.requires_human_review || f.outcome === 'INCONCLUSIVE' || f.outcome === 'FAIL').length;
   }, [findings]);
+
+  const adjudicatedCount = useMemo(() => Object.keys(adjudications).length, [adjudications]);
+  const pendingReviewCount = Math.max(0, reviewableCount - adjudicatedCount);
 
   // Genuine values (no fabricated defaults)
   const activePageNumber = currentPage;
@@ -201,7 +210,70 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
     }
   };
 
+  const getAdjudicatedOutcomeView = (finding: NormalizedFinding, decided?: AdjudicationRecord) => {
+    if (!decided) {
+      return getStatusBadge(finding.outcome);
+    }
+
+    switch (decided.decision) {
+      case 'CONFIRMED_VALID':
+        return (
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+            <span
+              className="badge badge-pass badge-pill"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              title={`Adjudication: Exception Accepted by Regulatory Officer (Original validation outcome: ${finding.outcome})`}
+            >
+              <Check size={11} style={{ strokeWidth: 3 }} />
+              <span>Exception Accepted</span>
+            </span>
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: '1.2' }}>
+              Orig: {finding.outcome} (Overridden)
+            </span>
+          </div>
+        );
+      case 'REJECTED_NON_COMPLIANT':
+        return (
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+            <span
+              className="badge badge-fail badge-pill"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              title={`Adjudication: Flagged Non-Compliant by Regulatory Officer (Original validation outcome: ${finding.outcome})`}
+            >
+              <XCircle size={11} />
+              <span>Flagged Non-Compliant</span>
+            </span>
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: '1.2' }}>
+              Orig: {finding.outcome} (Confirmed)
+            </span>
+          </div>
+        );
+      case 'REQUEST_CLARIFICATION':
+        return (
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+            <span
+              className="badge badge-inconclusive badge-pill"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              title={`Adjudication: Clarification Requested from Institution (Original validation outcome: ${finding.outcome})`}
+            >
+              <AlertTriangle size={11} />
+              <span>Clarification Pending</span>
+            </span>
+            <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', lineHeight: '1.2' }}>
+              Orig: {finding.outcome} (Clarifying)
+            </span>
+          </div>
+        );
+    }
+  };
+
   const getRowDotColor = (f: NormalizedFinding) => {
+    const decided = adjudications[f.finding_id];
+    if (decided) {
+      if (decided.decision === 'CONFIRMED_VALID') return 'var(--color-pass-dot)';
+      if (decided.decision === 'REJECTED_NON_COMPLIANT') return 'var(--color-fail-dot)';
+      if (decided.decision === 'REQUEST_CLARIFICATION') return 'var(--color-inconclusive-dot)';
+    }
     if (f.outcome === 'FAIL') return 'var(--color-fail-dot)';
     if (f.outcome === 'INCONCLUSIVE') return 'var(--color-inconclusive-dot)';
     if (f.category === 'AUTHENTICITY') return '#3b82f6';
@@ -304,6 +376,9 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
             }}
           >
             <option value="ALL">All Outcomes</option>
+            {adjudicatedCount > 0 && (
+              <option value="ADJUDICATED">Adjudicated in Draft ({adjudicatedCount})</option>
+            )}
             <option value="INCONCLUSIVE">Inconclusive</option>
             <option value="FAIL">Failed</option>
             <option value="PASS">Passed</option>
@@ -335,7 +410,11 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
             style={{ padding: '7px 16px', fontSize: '12.5px' }}
           >
             <SlidersHorizontal size={14} />
-            <span>Review All ({reviewableCount})</span>
+            <span>
+              {pendingReviewCount > 0
+                ? `Review All (${pendingReviewCount} pending)`
+                : `Review All (${adjudicatedCount} in draft)`}
+            </span>
           </button>
         </div>
       </div>
@@ -407,19 +486,47 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                           </div>
                           {decided && (
                             <div style={{
-                              marginTop: '3px',
-                              fontSize: '10px',
-                              color: 'var(--color-pass-text)',
+                              marginTop: '4px',
+                              fontSize: '10.5px',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '3px',
+                              gap: '4px',
                               fontWeight: '600',
-                              backgroundColor: 'var(--color-pass-bg)',
-                              padding: '1px 5px',
+                              padding: '2px 6px',
                               borderRadius: '4px',
+                              backgroundColor:
+                                decided.decision === 'CONFIRMED_VALID'
+                                  ? 'var(--color-pass-bg)'
+                                  : decided.decision === 'REJECTED_NON_COMPLIANT'
+                                  ? 'var(--color-fail-bg)'
+                                  : 'var(--color-inconclusive-bg)',
+                              color:
+                                decided.decision === 'CONFIRMED_VALID'
+                                  ? 'var(--color-pass-text)'
+                                  : decided.decision === 'REJECTED_NON_COMPLIANT'
+                                  ? 'var(--color-fail-text)'
+                                  : 'var(--color-inconclusive-text)',
+                              border: `1px solid ${
+                                decided.decision === 'CONFIRMED_VALID'
+                                  ? 'var(--color-pass-border)'
+                                  : decided.decision === 'REJECTED_NON_COMPLIANT'
+                                  ? 'var(--color-fail-border)'
+                                  : 'var(--color-inconclusive-border)'
+                              }`,
                             }}>
-                              <Check size={9} style={{ strokeWidth: 3 }} />
-                              {decided.decision}
+                              {decided.decision === 'CONFIRMED_VALID' ? (
+                                <Check size={10} style={{ strokeWidth: 3 }} />
+                              ) : decided.decision === 'REJECTED_NON_COMPLIANT' ? (
+                                <XCircle size={10} />
+                              ) : (
+                                <AlertTriangle size={10} />
+                              )}
+                              <span>
+                                {decided.decision === 'CONFIRMED_VALID' && 'Exception Validated'}
+                                {decided.decision === 'REJECTED_NON_COMPLIANT' && 'Non-Compliant'}
+                                {decided.decision === 'REQUEST_CLARIFICATION' && 'Clarification Req.'}
+                                {decided.notes ? ` — "${decided.notes.length > 28 ? `${decided.notes.substring(0, 28)}...` : decided.notes}"` : ''}
+                              </span>
                             </div>
                           )}
                         </td>
@@ -436,12 +543,30 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
 
                         {/* Outcome / Status */}
                         <td>
-                          {getStatusBadge(f.outcome)}
+                          {getAdjudicatedOutcomeView(f, decided)}
                         </td>
 
                         {/* Streamlined Action Button */}
                         <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          {isReviewable ? (
+                          {decided ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenAdjudicationForFinding) {
+                                  onOpenAdjudicationForFinding(f.finding_id);
+                                } else if (onOpenReviewAll) {
+                                  onOpenReviewAll();
+                                }
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '3px 8px', fontSize: '11px', fontWeight: '600' }}
+                              title="Edit active adjudication decision in session draft"
+                            >
+                              <span>Edit Draft</span>
+                              <span>✎</span>
+                            </button>
+                          ) : isReviewable ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -663,6 +788,62 @@ export const ValidationFindingsList: React.FC<ValidationFindingsListProps> = ({
                       Evidence Inspector
                     </span>
                   </div>
+
+                  {/* Active Officer Adjudication Determination (Session Draft) */}
+                  {activeFinding && adjudications[activeFinding.finding_id] && (() => {
+                    const adj = adjudications[activeFinding.finding_id];
+                    return (
+                      <div style={{
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        marginBottom: '12px',
+                        backgroundColor:
+                          adj.decision === 'CONFIRMED_VALID'
+                            ? 'var(--color-pass-bg)'
+                            : adj.decision === 'REJECTED_NON_COMPLIANT'
+                            ? 'var(--color-fail-bg)'
+                            : 'var(--color-inconclusive-bg)',
+                        border: `1px solid ${
+                          adj.decision === 'CONFIRMED_VALID'
+                            ? 'var(--color-pass-border)'
+                            : adj.decision === 'REJECTED_NON_COMPLIANT'
+                            ? 'var(--color-fail-border)'
+                            : 'var(--color-inconclusive-border)'
+                        }`,
+                        fontSize: '12px',
+                        color:
+                          adj.decision === 'CONFIRMED_VALID'
+                            ? 'var(--color-pass-text)'
+                            : adj.decision === 'REJECTED_NON_COMPLIANT'
+                            ? 'var(--color-fail-text)'
+                            : 'var(--color-inconclusive-text)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: '700' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {adj.decision === 'CONFIRMED_VALID' ? (
+                              <Check size={14} style={{ strokeWidth: 3 }} />
+                            ) : adj.decision === 'REJECTED_NON_COMPLIANT' ? (
+                              <XCircle size={14} />
+                            ) : (
+                              <AlertTriangle size={14} />
+                            )}
+                            <span>
+                              {adj.decision === 'CONFIRMED_VALID' && 'Adjudicated: Exception Accepted'}
+                              {adj.decision === 'REJECTED_NON_COMPLIANT' && 'Adjudicated: Flagged Non-Compliant'}
+                              {adj.decision === 'REQUEST_CLARIFICATION' && 'Adjudicated: Clarification Requested'}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '10.5px', opacity: 0.85 }}>Session Draft</span>
+                        </div>
+                        <div style={{ marginTop: '4px', fontSize: '11.5px', opacity: 0.95 }}>
+                          Officer Remarks: "{adj.notes}"
+                        </div>
+                        <div style={{ marginTop: '3px', fontSize: '10.5px', opacity: 0.75 }}>
+                          Original rule outcome: <strong>{activeFinding.outcome}</strong> • Timestamp: {adj.timestamp}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {activeEvidence ? (
                     <div>
