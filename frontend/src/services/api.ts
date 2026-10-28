@@ -11,7 +11,7 @@ import {
 } from '../types/api';
 import { authStorage } from './auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:8000/api/v1' : '/api/v1');
 
 function getAuthHeaders(extraHeaders?: Record<string, string>): Record<string, string> {
   const token = authStorage.getToken();

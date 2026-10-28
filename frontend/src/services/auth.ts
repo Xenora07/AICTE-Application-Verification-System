@@ -2,7 +2,7 @@
  * frontend/src/services/auth.ts - Client API for Native AICTE Authentication & User Management.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:8000/api/v1' : '/api/v1');
 
 export interface UserProfile {
   id: string;
